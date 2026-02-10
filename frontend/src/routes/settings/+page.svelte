@@ -137,8 +137,21 @@
             id="token"
             type="password"
             bind:value={settings.remote.token}
-            placeholder="ghp_..."
+            placeholder={settings.remote.provider === 'github' ? 'ghp_...' : settings.remote.provider === 'gitlab' ? 'glpat-...' : 'token'}
           />
+          {#if settings.remote.provider === 'github'}
+            <p class="field-help">
+              Create a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained personal access token</a> with <strong>Contents</strong> read &amp; write permission for your recipes repo.
+            </p>
+          {:else if settings.remote.provider === 'gitlab'}
+            <p class="field-help">
+              Create a <a href="https://gitlab.com/-/user_settings/personal_access_tokens" target="_blank" rel="noopener">personal access token</a> with <strong>read_repository</strong> and <strong>write_repository</strong> scopes.
+            </p>
+          {:else if settings.remote.provider === 'generic'}
+            <p class="field-help">
+              Use a personal access token from your git provider with read and write access to the repository.
+            </p>
+          {/if}
         </div>
 
         <div class="field checkbox-field">
@@ -312,6 +325,22 @@
   .field input:focus,
   .field select:focus {
     border-color: var(--color-accent);
+  }
+
+  .field-help {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .field-help a {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+
+  .field-help a:hover {
+    opacity: 0.8;
   }
 
   .checkbox-field {
