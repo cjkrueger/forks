@@ -1,28 +1,109 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getRecipe } from '$lib/api';
+  import { getRecipe, getFork, exportForkUrl } from '$lib/api';
   import { renderMarkdown } from '$lib/markdown';
-  import type { Recipe } from '$lib/types';
+  import { mergeContent, getModifiedSections, parseSections } from '$lib/sections';
+  import type { Recipe, ForkDetail } from '$lib/types';
 
   let recipe: Recipe | null = null;
   let loading = true;
   let error = false;
+
+  // Fork state
+  let selectedFork: string | null = null;
+  let forkDetail: ForkDetail | null = null;
+  let forkLoading = false;
+  let modifiedSections: Set<string> = new Set();
 
   $: slug = $page.params.slug;
 
   onMount(async () => {
     try {
       recipe = await getRecipe(slug);
+      // Check query param first, then localStorage
+      const queryFork = $page.url.searchParams.get('fork');
+      const defaultFork = queryFork || localStorage.getItem(`forks-default-${slug}`);
+      if (defaultFork && recipe.forks.some(f => f.name === defaultFork)) {
+        await selectFork(defaultFork);
+      }
     } catch (e) {
       error = true;
     }
     loading = false;
   });
+
+  async function selectFork(forkName: string | null) {
+    selectedFork = forkName;
+    forkDetail = null;
+    modifiedSections = new Set();
+    if (forkName && recipe) {
+      forkLoading = true;
+      try {
+        forkDetail = await getFork(slug, forkName);
+        modifiedSections = getModifiedSections(forkDetail.content);
+      } catch (e) {
+        forkDetail = null;
+      }
+      forkLoading = false;
+    }
+  }
+
+  function setAsDefault() {
+    if (selectedFork) {
+      localStorage.setItem(`forks-default-${slug}`, selectedFork);
+    } else {
+      localStorage.removeItem(`forks-default-${slug}`);
+    }
+    isDefault = true;
+  }
+
+  $: displayContent = (() => {
+    if (!recipe) return '';
+    if (forkDetail) {
+      return mergeContent(recipe.content, forkDetail.content);
+    }
+    return recipe.content;
+  })();
+
+  $: displayTitle = forkDetail ? forkDetail.fork_name : recipe?.title ?? '';
+
+  function renderWithHighlights(content: string, modified: Set<string>): string {
+    if (modified.size === 0) return renderMarkdown(content);
+
+    const sections = parseSections(content);
+    let html = '';
+    for (const section of sections) {
+      if (section.name === '_preamble') {
+        html += renderMarkdown(section.content);
+      } else {
+        const isModified = modified.has(section.name);
+        const sectionMd = `## ${section.name}\n\n${section.content}`;
+        if (isModified) {
+          html += `<div class="fork-modified">${renderMarkdown(sectionMd)}</div>`;
+        } else {
+          html += renderMarkdown(sectionMd);
+        }
+      }
+    }
+    return html;
+  }
+
+  $: renderedBody = renderWithHighlights(displayContent, modifiedSections);
+
+  let isDefault = true;
+  $: {
+    const stored = localStorage.getItem(`forks-default-${slug}`);
+    if (selectedFork) {
+      isDefault = stored === selectedFork;
+    } else {
+      isDefault = !stored;
+    }
+  }
 </script>
 
 <svelte:head>
-  <title>{recipe ? recipe.title : 'Recipe'} - Forks</title>
+  <title>{displayTitle} - Forks</title>
 </svelte:head>
 
 {#if loading}
@@ -45,7 +126,33 @@
     {/if}
 
     <header class="recipe-header">
-      <h1>{recipe.title}</h1>
+      <h1>{displayTitle}</h1>
+
+      {#if recipe.forks.length > 0}
+        <div class="version-selector">
+          <button
+            class="version-pill"
+            class:active={selectedFork === null}
+            on:click={() => selectFork(null)}
+          >
+            Original
+          </button>
+          {#each recipe.forks as fork}
+            <button
+              class="version-pill"
+              class:active={selectedFork === fork.name}
+              on:click={() => selectFork(fork.name)}
+            >
+              {fork.fork_name}
+            </button>
+          {/each}
+        </div>
+        {#if !isDefault}
+          <button class="set-default-link" on:click={setAsDefault}>
+            Set as my default
+          </button>
+        {/if}
+      {/if}
 
       <div class="meta">
         {#if recipe.prep_time}
@@ -80,13 +187,27 @@
       {/if}
 
       <div class="recipe-actions">
-        <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
+        {#if selectedFork}
+          <a href="/edit/{recipe.slug}?fork={selectedFork}" class="edit-btn">Edit Fork</a>
+          <a href={exportForkUrl(recipe.slug, selectedFork)} class="edit-btn" download>Export</a>
+        {:else}
+          <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
+        {/if}
+        <a href="/fork/{recipe.slug}" class="fork-btn">Fork This Recipe</a>
       </div>
+
+      {#if selectedFork && forkDetail?.author}
+        <p class="fork-author">by {forkDetail.author}</p>
+      {/if}
     </header>
 
-    <div class="recipe-body">
-      {@html renderMarkdown(recipe.content)}
-    </div>
+    {#if forkLoading}
+      <p class="loading">Loading fork...</p>
+    {:else}
+      <div class="recipe-body">
+        {@html renderedBody}
+      </div>
+    {/if}
   </article>
 {/if}
 
@@ -123,6 +244,49 @@
     font-weight: 700;
     line-height: 1.2;
     margin-bottom: 0.75rem;
+  }
+
+  .version-selector {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+
+  .version-pill {
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .version-pill.active {
+    background: var(--color-accent);
+    color: white;
+    border-color: var(--color-accent);
+  }
+
+  .version-pill:hover:not(.active) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .set-default-link {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 0.75rem;
+  }
+
+  .set-default-link:hover {
+    text-decoration: underline;
   }
 
   .meta {
@@ -170,6 +334,8 @@
   }
 
   .recipe-actions {
+    display: flex;
+    gap: 0.5rem;
     margin-top: 0.75rem;
   }
 
@@ -188,6 +354,30 @@
     border-color: var(--color-accent);
     color: var(--color-accent);
     text-decoration: none;
+  }
+
+  .fork-btn {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+
+  .fork-btn:hover {
+    background: var(--color-accent);
+    color: white;
+    text-decoration: none;
+  }
+
+  .fork-author {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin-top: 0.25rem;
   }
 
   .recipe-body {
@@ -225,6 +415,13 @@
   .recipe-body :global(ol li) {
     margin-bottom: 0.75rem;
     padding-left: 0.25rem;
+  }
+
+  .recipe-body :global(.fork-modified) {
+    border-left: 3px solid var(--color-accent);
+    padding-left: 1rem;
+    margin-left: -1rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
   }
 
   .loading, .error {
