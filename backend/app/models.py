@@ -8,6 +8,8 @@ class ForkSummary(BaseModel):
     fork_name: str
     author: Optional[str] = None
     date_added: Optional[str] = None
+    merged_at: Optional[str] = None
+    forked_at_commit: Optional[str] = None
 
 
 class CookHistoryEntry(BaseModel):
@@ -50,3 +52,31 @@ class ForkInput(BaseModel):
     ingredients: List[str] = []
     instructions: List[str] = []
     notes: List[str] = []
+
+
+class SyncStatus(BaseModel):
+    connected: bool = False
+    last_synced: Optional[str] = None
+    ahead: int = 0
+    behind: int = 0
+    error: Optional[str] = None
+
+
+class StreamEvent(BaseModel):
+    type: str  # "created", "edited", "forked", "merged"
+    date: str
+    message: str
+    commit: Optional[str] = None
+    fork_name: Optional[str] = None
+    fork_slug: Optional[str] = None
+
+
+class RemoteConfig(BaseModel):
+    provider: Optional[str] = None  # "github", "gitlab", "generic"
+    url: Optional[str] = None
+    token: Optional[str] = None
+
+
+class SyncConfig(BaseModel):
+    enabled: bool = False
+    interval_seconds: int = 90
