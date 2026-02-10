@@ -139,3 +139,20 @@ export async function removeFavorite(slug: string): Promise<{ favorited: boolean
   if (!res.ok) throw new Error('Failed to unfavorite');
   return res.json();
 }
+
+export async function listRecipesWithSort(sort: string, tags?: string[]): Promise<RecipeSummary[]> {
+  const params = new URLSearchParams();
+  params.set('sort', sort);
+  if (tags && tags.length > 0) {
+    params.set('tags', tags.join(','));
+  }
+  const res = await fetch(`${BASE}/recipes?${params.toString()}`);
+  if (!res.ok) throw new Error('Failed to fetch recipes');
+  return res.json();
+}
+
+export async function getRandomRecipe(): Promise<RecipeSummary> {
+  const res = await fetch(`${BASE}/recipes/random`);
+  if (!res.ok) throw new Error('No recipes found');
+  return res.json();
+}

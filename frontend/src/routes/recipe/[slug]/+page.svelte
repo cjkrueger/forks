@@ -4,10 +4,13 @@
   import { getRecipe, getFork, exportForkUrl, addCookHistory } from '$lib/api';
   import { renderMarkdown } from '$lib/markdown';
   import { mergeContent, getModifiedSections, parseSections } from '$lib/sections';
+  import { parseIngredient, formatIngredient } from '$lib/ingredients';
+  import { groceryStore, addRecipeToGrocery, removeRecipeFromGrocery } from '$lib/grocery';
   import type { Recipe, ForkDetail } from '$lib/types';
   import CookMode from '$lib/components/CookMode.svelte';
   import CookHistory from '$lib/components/CookHistory.svelte';
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
+  import ServingScaler from '$lib/components/ServingScaler.svelte';
 
   let recipe: Recipe | null = null;
   let loading = true;
@@ -21,6 +24,27 @@
 
   // Cook mode state
   let cookMode = false;
+
+  // Scaling state
+  let currentServings: number | null = null;
+  let originalServings: number | null = null;
+
+  $: {
+    if (recipe?.servings) {
+      const parsed = parseInt(recipe.servings);
+      if (!isNaN(parsed) && parsed > 0) {
+        originalServings = parsed;
+        if (currentServings === null) currentServings = parsed;
+      } else {
+        originalServings = null;
+      }
+    }
+  }
+
+  $: scaleFactor = (originalServings && currentServings) ? currentServings / originalServings : 1;
+
+  // Grocery state
+  $: onGroceryList = recipe ? recipe.slug in $groceryStore.recipes : false;
 
   $: slug = $page.params.slug as string;
 
@@ -47,6 +71,7 @@
     selectedFork = forkName;
     forkDetail = null;
     modifiedSections = new Set();
+    currentServings = originalServings;
     if (forkName && recipe) {
       forkLoading = true;
       try {
@@ -78,17 +103,30 @@
 
   $: displayTitle = forkDetail ? forkDetail.fork_name : recipe?.title ?? '';
 
-  function renderWithHighlights(content: string, modified: Set<string>): string {
-    if (modified.size === 0) return renderMarkdown(content);
+  function renderWithHighlights(content: string, modified: Set<string>, scale: number): string {
+    if (modified.size === 0 && scale === 1) return renderMarkdown(content);
 
     const sections = parseSections(content);
     let html = '';
     for (const section of sections) {
+      let sectionContent = section.content;
+
+      // Scale ingredient quantities
+      if (section.name.toLowerCase() === 'ingredients' && scale !== 1) {
+        sectionContent = sectionContent.split('\n').map(line => {
+          if (line.trim().startsWith('- ')) {
+            const parsed = parseIngredient(line.trim());
+            return `- ${formatIngredient(parsed, scale)}`;
+          }
+          return line;
+        }).join('\n');
+      }
+
       if (section.name === '_preamble') {
-        html += renderMarkdown(section.content);
+        html += renderMarkdown(sectionContent);
       } else {
         const isModified = modified.has(section.name);
-        const sectionMd = `## ${section.name}\n\n${section.content}`;
+        const sectionMd = `## ${section.name}\n\n${sectionContent}`;
         if (isModified) {
           html += `<div class="fork-modified">${renderMarkdown(sectionMd)}</div>`;
         } else {
@@ -99,7 +137,7 @@
     return html;
   }
 
-  $: renderedBody = renderWithHighlights(displayContent, modifiedSections);
+  $: renderedBody = renderWithHighlights(displayContent, modifiedSections, scaleFactor);
 
   let isDefault = true;
   $: {
@@ -161,6 +199,19 @@
   }
 
   $: cookData = parseCookData(displayContent);
+
+  function getIngredientLines(content: string): string[] {
+    const sections = parseSections(content);
+    for (const section of sections) {
+      if (section.name.toLowerCase() === 'ingredients') {
+        return section.content.split('\n')
+          .map(l => l.trim())
+          .filter(l => l.startsWith('- '))
+          .map(l => l.replace(/^-\s*/, ''));
+      }
+    }
+    return [];
+  }
 </script>
 
 <svelte:head>
@@ -239,7 +290,16 @@
         {/if}
         {#if recipe.servings}
           <span class="meta-item">
-            <strong>Serves:</strong> {recipe.servings}
+            <strong>Serves:</strong>
+            {#if originalServings}
+              <ServingScaler
+                {originalServings}
+                currentServings={currentServings || originalServings}
+                on:change={(e) => currentServings = e.detail.servings}
+              />
+            {:else}
+              {recipe.servings}
+            {/if}
           </span>
         {/if}
       </div>
@@ -264,6 +324,20 @@
 
       <div class="recipe-actions">
         <button class="cook-btn" on:click={enterCookMode}>Start Cooking</button>
+        {#if onGroceryList}
+          <button class="grocery-btn on-list" on:click={() => { if (recipe) removeRecipeFromGrocery(recipe.slug); }}>
+            On Grocery List
+          </button>
+        {:else}
+          <button class="grocery-btn" on:click={() => {
+            if (recipe) {
+              const lines = getIngredientLines(displayContent);
+              addRecipeToGrocery(recipe.slug, displayTitle, lines, selectedFork, currentServings ? String(currentServings) : recipe.servings);
+            }
+          }}>
+            Add to Grocery List
+          </button>
+        {/if}
         {#if selectedFork}
           <a href="/edit/{recipe.slug}?fork={selectedFork}" class="edit-btn">Edit Fork</a>
           <a href={exportForkUrl(recipe.slug, selectedFork)} class="edit-btn" download>Export</a>
@@ -454,6 +528,28 @@
     border-color: var(--color-accent);
     color: var(--color-accent);
     text-decoration: none;
+  }
+
+  .grocery-btn {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .grocery-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .grocery-btn.on-list {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
   }
 
   .fork-btn {

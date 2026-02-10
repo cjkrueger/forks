@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { listRecipes } from '$lib/api';
+  import { recipeCount } from '$lib/grocery';
   import { onMount } from 'svelte';
 
   let searchQuery = '';
@@ -67,6 +68,14 @@
       />
     </form>
     <a href="/add" class="add-btn" aria-label="Add recipe">+ Add</a>
+    <a href="/grocery" class="grocery-link" aria-label="Grocery list">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      {#if $recipeCount > 0}
+        <span class="grocery-badge">{$recipeCount}</span>
+      {/if}
+    </a>
   </header>
 
   <div class="layout">
@@ -176,6 +185,36 @@
   .add-btn:hover {
     opacity: 0.9;
     text-decoration: none;
+  }
+
+  .grocery-link {
+    position: relative;
+    text-decoration: none;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+  }
+
+  .grocery-link:hover {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .grocery-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    background: var(--color-accent);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .layout {
