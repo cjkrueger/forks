@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getRecipe, getFork, exportForkUrl } from '$lib/api';
+  import { getRecipe, getFork, exportForkUrl, addCookHistory } from '$lib/api';
   import { renderMarkdown } from '$lib/markdown';
   import { mergeContent, getModifiedSections, parseSections } from '$lib/sections';
   import type { Recipe, ForkDetail } from '$lib/types';
+  import CookMode from '$lib/components/CookMode.svelte';
+  import CookHistory from '$lib/components/CookHistory.svelte';
+  import FavoriteButton from '$lib/components/FavoriteButton.svelte';
 
   let recipe: Recipe | null = null;
   let loading = true;
@@ -16,6 +19,9 @@
   let forkLoading = false;
   let modifiedSections: Set<string> = new Set();
 
+  // Cook mode state
+  let cookMode = false;
+
   $: slug = $page.params.slug as string;
 
   onMount(async () => {
@@ -26,6 +32,10 @@
       const defaultFork = queryFork || localStorage.getItem(`forks-default-${slug}`);
       if (defaultFork && recipe.forks.some(f => f.name === defaultFork)) {
         await selectFork(defaultFork);
+      }
+      // Check for cook mode param
+      if ($page.url.searchParams.get('cook')) {
+        cookMode = true;
       }
     } catch (e) {
       error = true;
@@ -100,13 +110,72 @@
       isDefault = !stored;
     }
   }
+
+  // Cook mode helpers
+  function parseCookData(content: string) {
+    const sections = parseSections(content);
+    let ingredients: string[] = [];
+    let steps: string[] = [];
+    let notes: string[] = [];
+
+    for (const section of sections) {
+      if (section.name.toLowerCase() === 'ingredients') {
+        ingredients = section.content.split('\n')
+          .map(l => l.trim())
+          .filter(l => l.startsWith('- '))
+          .map(l => l.replace(/^-\s*/, ''));
+      } else if (section.name.toLowerCase() === 'instructions') {
+        steps = section.content.split('\n')
+          .map(l => l.trim())
+          .filter(l => /^\d+\./.test(l))
+          .map(l => l.replace(/^\d+\.\s*/, ''));
+      } else if (section.name.toLowerCase() === 'notes') {
+        notes = section.content.split('\n')
+          .map(l => l.trim())
+          .filter(l => l.startsWith('- '))
+          .map(l => l.replace(/^-\s*/, ''));
+      }
+    }
+
+    return { ingredients, steps, notes };
+  }
+
+  async function enterCookMode() {
+    cookMode = true;
+    if (recipe) {
+      try {
+        const result = await addCookHistory(slug, selectedFork || undefined);
+        recipe = { ...recipe, cook_history: result.cook_history };
+      } catch (e) {}
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set('cook', '1');
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  function exitCookMode() {
+    cookMode = false;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('cook');
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  $: cookData = parseCookData(displayContent);
 </script>
 
 <svelte:head>
   <title>{displayTitle} - Forks</title>
 </svelte:head>
 
-{#if loading}
+{#if cookMode && recipe}
+  <CookMode
+    title={displayTitle}
+    ingredients={cookData.ingredients}
+    steps={cookData.steps}
+    notes={cookData.notes}
+    on:exit={exitCookMode}
+  />
+{:else if loading}
   <p class="loading">Loading recipe...</p>
 {:else if error || !recipe}
   <div class="error">
@@ -126,7 +195,10 @@
     {/if}
 
     <header class="recipe-header">
-      <h1>{displayTitle}</h1>
+      <div class="title-row">
+        <h1>{displayTitle}</h1>
+        <FavoriteButton slug={recipe.slug} tags={recipe.tags} />
+      </div>
 
       {#if recipe.forks.length > 0}
         <div class="version-selector">
@@ -172,6 +244,10 @@
         {/if}
       </div>
 
+      {#if recipe.cook_history && recipe.cook_history.length > 0}
+        <CookHistory slug={recipe.slug} cookHistory={recipe.cook_history} />
+      {/if}
+
       {#if recipe.tags.length > 0}
         <div class="tags">
           {#each recipe.tags as tag}
@@ -187,6 +263,7 @@
       {/if}
 
       <div class="recipe-actions">
+        <button class="cook-btn" on:click={enterCookMode}>Start Cooking</button>
         {#if selectedFork}
           <a href="/edit/{recipe.slug}?fork={selectedFork}" class="edit-btn">Edit Fork</a>
           <a href={exportForkUrl(recipe.slug, selectedFork)} class="edit-btn" download>Export</a>
@@ -239,11 +316,18 @@
     margin-bottom: 2rem;
   }
 
-  .recipe-header h1 {
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .title-row h1 {
     font-size: 2rem;
     font-weight: 700;
     line-height: 1.2;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
   }
 
   .version-selector {
@@ -337,6 +421,22 @@
     display: flex;
     gap: 0.5rem;
     margin-top: 0.75rem;
+  }
+
+  .cook-btn {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    background: var(--color-accent);
+    color: white;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .cook-btn:hover {
+    opacity: 0.9;
   }
 
   .edit-btn {
@@ -435,7 +535,7 @@
   }
 
   @media (max-width: 768px) {
-    .recipe-header h1 {
+    .title-row h1 {
       font-size: 1.5rem;
     }
 

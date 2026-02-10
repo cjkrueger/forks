@@ -1,3 +1,8 @@
+export interface CookHistoryEntry {
+  date: string;
+  fork: string | null;
+}
+
 export interface ForkSummary {
   name: string;
   fork_name: string;
@@ -16,6 +21,7 @@ export interface RecipeSummary {
   source: string | null;
   image: string | null;
   forks: ForkSummary[];
+  cook_history: CookHistoryEntry[];
 }
 
 export interface Recipe extends RecipeSummary {

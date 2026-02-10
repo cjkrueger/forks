@@ -1,4 +1,4 @@
-import type { Recipe, RecipeInput, RecipeSummary, ScrapeResponse, ForkDetail, ForkInput } from './types';
+import type { Recipe, RecipeInput, RecipeSummary, ScrapeResponse, ForkDetail, ForkInput, CookHistoryEntry } from './types';
 
 const BASE = '/api';
 
@@ -108,4 +108,34 @@ export async function deleteFork(slug: string, forkName: string): Promise<void> 
 
 export function exportForkUrl(slug: string, forkName: string): string {
   return `${BASE}/recipes/${slug}/forks/${forkName}/export`;
+}
+
+export async function addCookHistory(slug: string, fork?: string): Promise<{ cook_history: CookHistoryEntry[] }> {
+  const body: Record<string, string> = {};
+  if (fork) body.fork = fork;
+  const res = await fetch(`${BASE}/recipes/${slug}/cook-history`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Failed to log cook');
+  return res.json();
+}
+
+export async function deleteCookHistory(slug: string, index: number): Promise<{ cook_history: CookHistoryEntry[] }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/cook-history/${index}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete cook history entry');
+  return res.json();
+}
+
+export async function addFavorite(slug: string): Promise<{ favorited: boolean }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/favorite`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to favorite');
+  return res.json();
+}
+
+export async function removeFavorite(slug: string): Promise<{ favorited: boolean }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/favorite`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to unfavorite');
+  return res.json();
 }
