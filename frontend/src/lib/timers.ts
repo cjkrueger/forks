@@ -7,6 +7,7 @@ export interface TimerMatch {
 }
 
 const TIME_PATTERN = /(\d+(?:[./]\d+)?)\s*(?:-\s*(\d+(?:[./]\d+)?)\s*)?(seconds?|secs?|minutes?|mins?|hours?|hrs?)(?:\s+and\s+(\d+(?:[./]\d+)?)\s*(minutes?|mins?|seconds?|secs?))?/gi;
+const IMPLICIT_ONE_PATTERN = /\b(?:a|another|one)\s+(minutes?|mins?|seconds?|secs?|hours?|hrs?)\b/gi;
 
 function parseNumber(s: string): number {
   if (s.includes('/')) {
@@ -69,5 +70,24 @@ export function parseTimers(text: string): TimerMatch[] {
     });
   }
 
+  // Catch "a minute", "another minute", "one hour", etc.
+  IMPLICIT_ONE_PATTERN.lastIndex = 0;
+  while ((match = IMPLICIT_ONE_PATTERN.exec(text)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    // Skip if already covered by a numeric match
+    if (matches.some(m => start >= m.startIndex && start < m.endIndex)) continue;
+
+    const totalSeconds = unitToSeconds(match[1]);
+    matches.push({
+      startIndex: start,
+      endIndex: end,
+      originalText: match[0],
+      totalSeconds,
+      label: formatLabel(totalSeconds),
+    });
+  }
+
+  matches.sort((a, b) => a.startIndex - b.startIndex);
   return matches;
 }
