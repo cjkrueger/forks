@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 from app.generator import RecipeInput, slugify, generate_markdown
@@ -122,6 +122,39 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
                 img.unlink()
 
         index.remove(slug)
+
+    @router.post("/images/upload")
+    async def upload_image(file: UploadFile = File(...)):
+        if not file.content_type or not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="File must be an image")
+
+        ext_map = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+            "image/gif": ".gif",
+        }
+        ext = ext_map.get(file.content_type, ".jpg")
+
+        # Use the original filename stem, sanitized
+        stem = Path(file.filename or "upload").stem
+        safe_stem = slugify(stem) or "upload"
+        filename = f"{safe_stem}{ext}"
+
+        images_dir = recipes_dir / "images"
+        images_dir.mkdir(exist_ok=True)
+        dest = images_dir / filename
+
+        # Avoid overwriting
+        counter = 1
+        while dest.exists():
+            dest = images_dir / f"{safe_stem}-{counter}{ext}"
+            counter += 1
+
+        content = await file.read()
+        dest.write_bytes(content)
+
+        return {"path": f"images/{dest.name}"}
 
     return router
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { RecipeInput } from '$lib/types';
+  import { uploadImage } from '$lib/api';
 
   export let initialData: Partial<RecipeInput> = {};
   export let imagePreviewUrl: string | null = null;
@@ -17,6 +18,67 @@
   let instructions = (initialData.instructions || []).join('\n');
   let notes = (initialData.notes || []).join('\n');
 
+  let imageMode: 'current' | 'url' | 'upload' = 'current';
+  let imageUrl = '';
+  let uploading = false;
+  let uploadError = '';
+  let fileInput: HTMLInputElement;
+
+  $: previewSrc = (() => {
+    if (imageMode === 'current' && imagePreviewUrl && image) return imagePreviewUrl;
+    if (imageMode === 'url' && imageUrl.trim()) return imageUrl.trim();
+    return null;
+  })();
+
+  function removeImage() {
+    image = '';
+    imagePreviewUrl = null;
+    imageUrl = '';
+    imageMode = 'current';
+  }
+
+  function showUrlInput() {
+    imageMode = 'url';
+    imageUrl = '';
+  }
+
+  function applyUrl() {
+    if (imageUrl.trim()) {
+      image = imageUrl.trim();
+      imageMode = 'current';
+      imagePreviewUrl = imageUrl.trim();
+      imageUrl = '';
+    }
+  }
+
+  function triggerUpload() {
+    fileInput.click();
+  }
+
+  async function handleFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    uploading = true;
+    uploadError = '';
+    try {
+      const result = await uploadImage(file);
+      image = result.path;
+      imagePreviewUrl = `/api/images/${result.path.replace('images/', '')}`;
+      imageMode = 'current';
+    } catch (err: any) {
+      uploadError = err.message || 'Upload failed';
+    }
+    uploading = false;
+    input.value = '';
+  }
+
+  function cancelUrlInput() {
+    imageMode = 'current';
+    imageUrl = '';
+  }
+
   function handleSubmit() {
     const data: RecipeInput = {
       title: title.trim(),
@@ -25,7 +87,7 @@
       prep_time: prep_time.trim() || null,
       cook_time: cook_time.trim() || null,
       source: source.trim() || null,
-      image: image.trim() || imagePreviewUrl || null,
+      image: image.trim() || null,
       ingredients: ingredients.split('\n').map(l => l.trim()).filter(Boolean),
       instructions: instructions.split('\n').map(l => l.trim()).filter(Boolean),
       notes: notes.split('\n').map(l => l.trim()).filter(Boolean),
@@ -67,11 +129,49 @@
     </div>
   </div>
 
-  {#if imagePreviewUrl}
-    <div class="image-preview">
-      <img src={imagePreviewUrl} alt="Recipe preview" />
-    </div>
-  {/if}
+  <div class="image-section">
+    <label class="image-label">Photo</label>
+    {#if previewSrc}
+      <div class="image-preview">
+        <img src={previewSrc} alt="Recipe preview" />
+        <div class="image-overlay">
+          <button type="button" class="img-action-btn" on:click={showUrlInput}>Change URL</button>
+          <button type="button" class="img-action-btn" on:click={triggerUpload}>
+            {uploading ? 'Uploading...' : 'Upload new'}
+          </button>
+          <button type="button" class="img-action-btn danger" on:click={removeImage}>Remove</button>
+        </div>
+      </div>
+    {:else if imageMode === 'url'}
+      <div class="image-url-input">
+        <input
+          type="url"
+          bind:value={imageUrl}
+          placeholder="https://example.com/photo.jpg"
+          class="url-input"
+        />
+        <button type="button" class="img-btn" on:click={applyUrl} disabled={!imageUrl.trim()}>Set</button>
+        <button type="button" class="img-btn secondary" on:click={cancelUrlInput}>Cancel</button>
+      </div>
+    {:else}
+      <div class="image-empty">
+        <button type="button" class="img-btn" on:click={triggerUpload} disabled={uploading}>
+          {uploading ? 'Uploading...' : 'Upload photo'}
+        </button>
+        <button type="button" class="img-btn secondary" on:click={showUrlInput}>Paste URL</button>
+      </div>
+    {/if}
+    {#if uploadError}
+      <p class="upload-error">{uploadError}</p>
+    {/if}
+    <input
+      type="file"
+      accept="image/*"
+      bind:this={fileInput}
+      on:change={handleFileSelect}
+      class="file-input"
+    />
+  </div>
 
   <div class="field full">
     <label for="ingredients">Ingredients <span class="hint">one per line</span></label>
@@ -161,7 +261,20 @@
     line-height: 1.6;
   }
 
+  .image-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .image-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
   .image-preview {
+    position: relative;
     border-radius: var(--radius);
     overflow: hidden;
     max-height: 300px;
@@ -171,6 +284,103 @@
     width: 100%;
     max-height: 300px;
     object-fit: cover;
+    display: block;
+  }
+
+  .image-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .image-preview:hover .image-overlay {
+    opacity: 1;
+  }
+
+  .img-action-btn {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: var(--radius);
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    backdrop-filter: blur(4px);
+  }
+
+  .img-action-btn:hover {
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .img-action-btn.danger:hover {
+    background: rgba(220, 38, 38, 0.7);
+  }
+
+  .image-url-input {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .url-input {
+    flex: 1;
+  }
+
+  .image-empty {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1.5rem;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius);
+    justify-content: center;
+  }
+
+  .img-btn {
+    padding: 0.4rem 0.85rem;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--color-accent);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .img-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .img-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .img-btn.secondary {
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+  }
+
+  .img-btn.secondary:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .upload-error {
+    font-size: 0.85rem;
+    color: var(--color-danger);
+  }
+
+  .file-input {
+    display: none;
   }
 
   .actions {

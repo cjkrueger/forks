@@ -174,6 +174,20 @@ export async function saveMealPlan(weeks: Record<string, { slug: string; fork?: 
   return res.json();
 }
 
+export async function uploadImage(file: File): Promise<{ path: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${BASE}/images/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
+    throw new Error(err.detail || 'Upload failed');
+  }
+  return res.json();
+}
+
 export async function getForkHistory(slug: string, forkName: string, includeContent = false): Promise<{ history: { hash: string; date: string; message: string; content?: string }[] }> {
   const params = includeContent ? '?content=true' : '';
   const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/history${params}`);

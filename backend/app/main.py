@@ -37,8 +37,8 @@ def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
 
     # Serve recipe images
     images_dir = recipes_path / "images"
-    if images_dir.exists():
-        app.mount("/api/images", StaticFiles(directory=str(images_dir)), name="images")
+    images_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/api/images", StaticFiles(directory=str(images_dir)), name="images")
 
     # Start file watcher
     @app.on_event("startup")

@@ -28,12 +28,17 @@ class RecipeIndex:
             logger.warning(f"Recipes directory not found: {self.recipes_dir}")
             return
         for path in self.recipes_dir.glob("*.md"):
+            if self._is_special_file(path):
+                continue
             if self._is_fork_file(path):
                 self._index_fork(path)
             else:
                 self._index_file(path)
         self._attach_forks()
         logger.info(f"Indexed {len(self._index)} recipes from {self.recipes_dir}")
+
+    def _is_special_file(self, path: Path) -> bool:
+        return path.name == "meal-plan.md"
 
     def _is_fork_file(self, path: Path) -> bool:
         return ".fork." in path.name
@@ -156,6 +161,8 @@ class RecipeIndex:
         return sorted(results, key=lambda r: r.title.lower())
 
     def add_or_update(self, path: Path) -> None:
+        if self._is_special_file(path):
+            return
         if self._is_fork_file(path):
             self._index_fork(path)
             base_slug = path.stem.split(".fork.")[0]
