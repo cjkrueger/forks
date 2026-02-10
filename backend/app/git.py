@@ -1,8 +1,17 @@
 import logging
 import subprocess
+from dataclasses import dataclass, field
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PullResult:
+    """Result of a git pull operation."""
+    success: bool = False
+    changed_files: list = field(default_factory=list)
+    conflict_files: list = field(default_factory=list)
 
 
 def git_init_if_needed(recipes_dir: Path) -> None:
@@ -124,3 +133,184 @@ def git_show(recipes_dir: Path, revision: str, path: Path) -> str:
     except Exception:
         logger.exception("Git show failed for %s at %s", path, revision)
         return ""
+
+
+# ---------------------------------------------------------------------------
+# Remote operations – return success/failure for UI feedback
+# ---------------------------------------------------------------------------
+
+
+def git_head_hash(recipes_dir: Path) -> str:
+    """Return the current HEAD commit hash, or empty string if unavailable."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(recipes_dir),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except Exception:
+        logger.debug("git_head_hash failed for %s", recipes_dir)
+        return ""
+
+
+def git_has_remote(recipes_dir: Path) -> bool:
+    """Return True if the repo has an 'origin' remote configured."""
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=str(recipes_dir),
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def git_remote_add(recipes_dir: Path, url: str) -> None:
+    """Add or update the 'origin' remote URL."""
+    try:
+        if git_has_remote(recipes_dir):
+            subprocess.run(
+                ["git", "remote", "set-url", "origin", url],
+                cwd=str(recipes_dir),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            logger.info("Updated origin remote to %s", url)
+        else:
+            subprocess.run(
+                ["git", "remote", "add", "origin", url],
+                cwd=str(recipes_dir),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            logger.info("Added origin remote %s", url)
+    except Exception:
+        logger.exception("Failed to add/update origin remote")
+
+
+def git_push(recipes_dir: Path) -> bool:
+    """Push current branch to origin. Returns True on success, False on failure."""
+    try:
+        # Determine the current branch name
+        branch_result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(recipes_dir),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        branch = branch_result.stdout.strip()
+
+        result = subprocess.run(
+            ["git", "push", "-u", "origin", branch],
+            cwd=str(recipes_dir),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            logger.warning("git push failed: %s", result.stderr.strip())
+            return False
+        return True
+    except Exception:
+        logger.exception("git push failed")
+        return False
+
+
+def git_pull(recipes_dir: Path) -> PullResult:
+    """Pull from origin. Returns a PullResult with changed/conflict info."""
+    try:
+        # Record HEAD before pull to diff afterwards
+        head_before = git_head_hash(recipes_dir)
+
+        result = subprocess.run(
+            ["git", "pull", "origin"],
+            cwd=str(recipes_dir),
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            # Check for merge conflicts
+            status = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=str(recipes_dir),
+                capture_output=True,
+                text=True,
+            )
+            conflict_files = []
+            for line in status.stdout.strip().split("\n"):
+                if line.startswith("UU ") or line.startswith("AA "):
+                    conflict_files.append(line[3:].strip())
+            if conflict_files:
+                return PullResult(
+                    success=False,
+                    changed_files=[],
+                    conflict_files=conflict_files,
+                )
+            logger.warning("git pull failed: %s", result.stderr.strip())
+            return PullResult(success=False)
+
+        # Determine which files changed
+        head_after = git_head_hash(recipes_dir)
+        changed_files = []
+        if head_before and head_after and head_before != head_after:
+            diff_result = subprocess.run(
+                ["git", "diff", "--name-only", head_before, head_after],
+                cwd=str(recipes_dir),
+                capture_output=True,
+                text=True,
+            )
+            changed_files = [
+                f for f in diff_result.stdout.strip().split("\n") if f
+            ]
+
+        return PullResult(
+            success=True,
+            changed_files=changed_files,
+            conflict_files=[],
+        )
+    except Exception:
+        logger.exception("git pull failed")
+        return PullResult(success=False)
+
+
+def git_ahead_behind(recipes_dir: Path) -> tuple:
+    """Return (ahead, behind) counts relative to origin tracking branch.
+
+    Returns (0, 0) if there is no remote or tracking info is unavailable.
+    """
+    try:
+        if not git_has_remote(recipes_dir):
+            return (0, 0)
+
+        # Fetch to make sure remote refs are up-to-date
+        subprocess.run(
+            ["git", "fetch", "origin"],
+            cwd=str(recipes_dir),
+            capture_output=True,
+            text=True,
+        )
+
+        result = subprocess.run(
+            ["git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
+            cwd=str(recipes_dir),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            return (0, 0)
+
+        parts = result.stdout.strip().split()
+        if len(parts) == 2:
+            return (int(parts[0]), int(parts[1]))
+        return (0, 0)
+    except Exception:
+        logger.debug("git_ahead_behind failed for %s", recipes_dir)
+        return (0, 0)
