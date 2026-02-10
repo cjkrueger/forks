@@ -86,6 +86,15 @@ class TestAutoTag:
         tags = auto_tag("Fluffy Pancakes", [])
         assert "breakfast" in tags
 
+    def test_olive_oil_does_not_trigger_mediterranean(self):
+        """Olive oil is too common to be a reliable mediterranean indicator."""
+        tags = auto_tag("Roasted Vegetables", ["2 tbsp olive oil", "3 carrots", "1 onion"])
+        assert "mediterranean" not in tags
+
+    def test_mediterranean_from_specific_keywords(self):
+        tags = auto_tag("Falafel Bowl", ["falafel", "tahini", "pita"])
+        assert "mediterranean" in tags
+
     def test_empty_inputs(self):
         tags = auto_tag("", [])
         assert tags == []

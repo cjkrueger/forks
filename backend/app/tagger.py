@@ -61,7 +61,8 @@ CUISINES = {
                "au gratin", "confit", "bouillabaisse", "coq au vin", "crème brûlée",
                "quiche", "soufflé", "souffle", "cassoulet"],
     "mediterranean": ["feta", "hummus", "tahini", "tzatziki", "falafel",
-                       "pita", "olive oil", "mediterranean"],
+                       "pita", "za'atar", "zaatar", "halloumi", "labneh",
+                       "mediterranean"],
     "cajun": ["cajun", "creole", "jambalaya", "gumbo", "andouille", "étouffée"],
 }
 
