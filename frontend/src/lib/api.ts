@@ -1,4 +1,4 @@
-import type { Recipe, RecipeInput, RecipeSummary, ScrapeResponse, ForkDetail, ForkInput, CookHistoryEntry } from './types';
+import type { Recipe, RecipeInput, RecipeSummary, ScrapeResponse, ForkDetail, ForkInput, CookHistoryEntry, SyncStatus, AppSettings, StreamTimeline } from './types';
 
 const BASE = '/api';
 
@@ -192,5 +192,52 @@ export async function getForkHistory(slug: string, forkName: string, includeCont
   const params = includeContent ? '?content=true' : '';
   const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/history${params}`);
   if (!res.ok) throw new Error('Failed to fetch fork history');
+  return res.json();
+}
+
+export async function getSyncStatus(): Promise<SyncStatus> {
+  const res = await fetch(`${BASE}/sync/status`);
+  if (!res.ok) throw new Error('Failed to get sync status');
+  return res.json();
+}
+
+export async function triggerSync(): Promise<{ pull_success: boolean; push_success: boolean; pull_changed: string[] }> {
+  const res = await fetch(`${BASE}/sync/trigger`, { method: 'POST' });
+  if (!res.ok) throw new Error('Sync failed');
+  return res.json();
+}
+
+export async function getSettings(): Promise<AppSettings> {
+  const res = await fetch(`${BASE}/settings`);
+  if (!res.ok) throw new Error('Failed to get settings');
+  return res.json();
+}
+
+export async function saveSettings(settings: AppSettings): Promise<void> {
+  const res = await fetch(`${BASE}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) throw new Error('Failed to save settings');
+}
+
+export async function disconnectRemote(): Promise<void> {
+  const res = await fetch(`${BASE}/settings/remote`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to disconnect');
+}
+
+export async function getRecipeStream(slug: string): Promise<StreamTimeline> {
+  const res = await fetch(`${BASE}/recipes/${slug}/stream`);
+  if (!res.ok) throw new Error('Failed to fetch recipe stream');
+  return res.json();
+}
+
+export async function mergeFork(slug: string, forkName: string): Promise<{ merged: boolean }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/merge`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Merge failed' }));
+    throw new Error(err.detail || 'Merge failed');
+  }
   return res.json();
 }

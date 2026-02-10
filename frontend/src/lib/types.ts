@@ -8,6 +8,8 @@ export interface ForkSummary {
   fork_name: string;
   author: string | null;
   date_added: string | null;
+  merged_at: string | null;
+  forked_at_commit: string | null;
 }
 
 export interface RecipeSummary {
@@ -81,4 +83,41 @@ export interface MealSlot {
 
 export interface WeekPlan {
   [date: string]: MealSlot[];
+}
+
+export interface SyncStatus {
+  connected: boolean;
+  last_synced: string | null;
+  ahead: number;
+  behind: number;
+  error: string | null;
+}
+
+export interface StreamEvent {
+  type: 'created' | 'edited' | 'forked' | 'merged';
+  date: string;
+  message: string;
+  commit: string | null;
+  fork_name: string | null;
+  fork_slug: string | null;
+}
+
+export interface StreamTimeline {
+  events: StreamEvent[];
+}
+
+export interface RemoteConfig {
+  provider: string | null;
+  url: string | null;
+  token: string | null;
+}
+
+export interface SyncConfig {
+  enabled: boolean;
+  interval_seconds: number;
+}
+
+export interface AppSettings {
+  remote: RemoteConfig;
+  sync: SyncConfig;
 }
