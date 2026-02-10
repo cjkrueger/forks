@@ -66,6 +66,7 @@
         class="search-input"
       />
     </form>
+    <a href="/add" class="add-btn" aria-label="Add recipe">+ Add</a>
   </header>
 
   <div class="layout">
@@ -159,6 +160,22 @@
 
   .search-input:focus {
     border-color: var(--color-accent);
+  }
+
+  .add-btn {
+    padding: 0.5rem 1rem;
+    background: var(--color-accent);
+    color: white;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .add-btn:hover {
+    opacity: 0.9;
+    text-decoration: none;
   }
 
   .layout {
