@@ -6,11 +6,18 @@ import frontmatter
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
+from app.changelog import append_changelog_entry
 from app.generator import slugify
 from app.git import git_commit, git_head_hash, git_log, git_rm, git_show
 from app.index import RecipeIndex
 from app.models import ForkDetail, ForkInput
-from app.sections import diff_sections, generate_fork_markdown, merge_content, merge_fork_into_base
+from app.sections import (
+    detect_changed_sections,
+    diff_sections,
+    generate_fork_markdown,
+    merge_content,
+    merge_fork_into_base,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +82,12 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             forked_at_commit=head_hash if head_hash else None,
         )
         path.write_text(md)
+
+        # Append changelog entry
+        fork_post = frontmatter.load(path)
+        append_changelog_entry(fork_post, "created", "Forked from original")
+        path.write_text(frontmatter.dumps(fork_post))
+
         git_commit(recipes_dir, path, f"Create fork: {data.fork_name} ({slug})")
         index.add_or_update(path)
 
@@ -86,6 +99,11 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         path = _fork_path(slug, fork_name_slug)
         if not path.exists():
             raise HTTPException(status_code=404, detail="Fork not found")
+
+        # Read old fork content and changelog before overwriting
+        old_fork_post = frontmatter.load(path)
+        old_fork_content = old_fork_post.content
+        old_changelog = old_fork_post.metadata.get("changelog", [])
 
         base_post = frontmatter.load(base_path)
         changed = diff_sections(
@@ -104,6 +122,18 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             author=data.author,
         )
         path.write_text(md)
+
+        # Detect changed sections between old and new fork content
+        new_fork_post = frontmatter.load(path)
+        section_changes = detect_changed_sections(old_fork_content, new_fork_post.content)
+        if section_changes:
+            summary = "Edited " + ", ".join(section_changes)
+        else:
+            summary = "Edited metadata"
+        new_fork_post.metadata["changelog"] = old_changelog
+        append_changelog_entry(new_fork_post, "edited", summary)
+        path.write_text(frontmatter.dumps(new_fork_post))
+
         git_commit(recipes_dir, path, f"Update fork: {data.fork_name} ({slug})")
         index.add_or_update(path)
 
@@ -188,13 +218,18 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         merged_body = merge_fork_into_base(base_post.content, fork_post.content)
         base_post.content = merged_body
 
+        fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
+
+        # Append changelog to base recipe
+        append_changelog_entry(base_post, "merged", f"Merged fork '{fork_name}'")
+
         # Write updated base file
         base_path.write_text(frontmatter.dumps(base_post))
-        fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
         git_commit(recipes_dir, base_path, f"Merge fork '{fork_name}' into {slug}")
 
-        # Mark fork as merged
+        # Mark fork as merged and append changelog
         fork_post.metadata["merged_at"] = datetime.date.today().isoformat()
+        append_changelog_entry(fork_post, "merged", f"Merged into {slug}")
         fork_path.write_text(frontmatter.dumps(fork_post))
         git_commit(recipes_dir, fork_path, f"Mark fork '{fork_name}' as merged ({slug})")
 

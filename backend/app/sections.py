@@ -149,6 +149,26 @@ def merge_fork_into_base(base_content: str, fork_content: str) -> str:
     return merge_content(base_content, fork_content)
 
 
+def detect_changed_sections(old_content: str, new_content: str) -> list:
+    """Compare two markdown bodies and return names of sections that differ.
+
+    Skips the '_preamble' key so only real ## sections are reported.
+    """
+    old_sections = parse_sections(old_content)
+    new_sections = parse_sections(new_content)
+
+    all_keys = set(old_sections.keys()) | set(new_sections.keys())
+    changed = []
+    for key in sorted(all_keys):
+        if key == "_preamble":
+            continue
+        old_text = _normalize(old_sections.get(key, ""))
+        new_text = _normalize(new_sections.get(key, ""))
+        if old_text != new_text:
+            changed.append(key)
+    return changed
+
+
 def _normalize(text: str) -> str:
     """Normalize section text for comparison."""
     return re.sub(r"\s+", " ", text.strip())
