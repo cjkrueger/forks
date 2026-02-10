@@ -13,6 +13,9 @@ from app.routes.editor import create_editor_router
 from app.routes.forks import create_fork_router
 from app.routes.planner import create_planner_router
 from app.routes.recipes import create_recipe_router
+from app.routes.settings import create_settings_router
+from app.routes.stream import create_stream_router
+from app.sync import SyncEngine
 from app.watcher import start_watcher
 
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +37,11 @@ def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
     app.include_router(create_fork_router(index, recipes_path))
     app.include_router(create_cook_router(index, recipes_path))
     app.include_router(create_planner_router(recipes_path))
+
+    app.include_router(create_stream_router(index, recipes_path))
+
+    sync_engine = SyncEngine(recipes_dir=recipes_path, index=index)
+    app.include_router(create_settings_router(sync_engine, recipes_path))
 
     # Serve recipe images
     images_dir = recipes_path / "images"
