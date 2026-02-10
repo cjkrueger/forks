@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.generator import RecipeInput, slugify, generate_markdown
 from app.index import RecipeIndex
 from app.scraper import scrape_recipe, download_image
+from app.tagger import auto_tag
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class ScrapeRequest(BaseModel):
 
 class ScrapeResponse(BaseModel):
     title: Optional[str] = None
+    tags: list = []
     ingredients: list = []
     instructions: list = []
     prep_time: Optional[str] = None
@@ -38,6 +40,13 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         data = scrape_recipe(req.url)
         if not data.get("title"):
             raise HTTPException(status_code=422, detail="Could not extract recipe from URL")
+        data["tags"] = auto_tag(
+            title=data.get("title", ""),
+            ingredients=data.get("ingredients", []),
+            prep_time=data.get("prep_time"),
+            cook_time=data.get("cook_time"),
+            total_time=data.get("total_time"),
+        )
         return data
 
     @router.post("/recipes", status_code=201)

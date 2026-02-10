@@ -41,7 +41,7 @@
     if (!scrapedData) return {};
     return {
       title: scrapedData.title || '',
-      tags: [],
+      tags: scrapedData.tags || [],
       servings: scrapedData.servings,
       prep_time: scrapedData.prep_time,
       cook_time: scrapedData.cook_time,

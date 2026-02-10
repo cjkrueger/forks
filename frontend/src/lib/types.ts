@@ -16,6 +16,7 @@ export interface Recipe extends RecipeSummary {
 
 export interface ScrapeResponse {
   title: string | null;
+  tags: string[];
   ingredients: string[];
   instructions: string[];
   prep_time: string | null;
