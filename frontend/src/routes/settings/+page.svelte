@@ -274,7 +274,7 @@
   }
 
   .status-dot.connected {
-    background: #22c55e;
+    background: var(--color-success);
   }
 
   .status-label {
@@ -423,15 +423,15 @@
   }
 
   .message.success {
-    background: #f0fdf4;
-    color: #166534;
-    border: 1px solid #bbf7d0;
+    background: var(--color-success-light);
+    color: #2E7D32;
+    border: 1px solid #A5D6A7;
   }
 
   :global([data-theme="dark"]) .message.success {
-    background: #0a1f0d;
-    color: #4ade80;
-    border-color: #166534;
+    background: var(--color-success-light);
+    color: var(--color-success);
+    border-color: #2E5A2E;
   }
 
   .message.error {

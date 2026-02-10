@@ -318,7 +318,7 @@
   .sync-indicator {
     display: flex;
     align-items: center;
-    color: #22c55e;
+    color: var(--color-success);
   }
 
   .sync-indicator.error {

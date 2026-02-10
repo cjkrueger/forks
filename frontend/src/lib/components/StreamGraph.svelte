@@ -8,8 +8,8 @@
     switch (type) {
       case 'created': return 'var(--color-accent)';
       case 'edited': return 'var(--color-border)';
-      case 'forked': return '#3b82f6';
-      case 'merged': return '#22c55e';
+      case 'forked': return 'var(--color-secondary)';
+      case 'merged': return 'var(--color-success)';
       default: return 'var(--color-border)';
     }
   }
@@ -111,7 +111,7 @@
   .stream-fork-link {
     background: none;
     border: none;
-    color: #3b82f6;
+    color: var(--color-secondary);
     font-size: 0.8rem;
     cursor: pointer;
     padding: 0 0.25rem;
