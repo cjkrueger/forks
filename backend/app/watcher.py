@@ -27,12 +27,12 @@ class RecipeEventHandler(FileSystemEventHandler):
 
     def _handle_update(self, path: Path) -> None:
         if path.exists():
-            logger.info(f"Recipe updated: {path.name}")
+            logger.info(f"File updated: {path.name}")
             self.index.add_or_update(path)
         else:
-            slug = path.stem
-            logger.info(f"Recipe deleted: {slug}")
-            self.index.remove(slug)
+            stem = path.stem
+            logger.info(f"File deleted: {stem}")
+            self.index.remove(stem)
 
     def on_created(self, event: FileSystemEvent) -> None:
         if event.is_directory:
