@@ -1,4 +1,5 @@
 import logging
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -86,11 +87,35 @@ def scrape_recipe(url: str) -> Dict[str, Any]:
         pass
 
     try:
-        result["image_url"] = scraper.image()
+        image = scraper.image()
+        if image:
+            result["image_url"] = _upgrade_image_url(image)
     except Exception:
         pass
 
     return result
+
+
+def _upgrade_image_url(url: str) -> str:
+    """Try to get the full-size image URL instead of a thumbnail.
+
+    WordPress sites often serve thumbnails with dimension suffixes like
+    '-225x225.jpg'. Stripping the suffix gives the full-size original.
+    """
+    upgraded = re.sub(r"-\d+x\d+(\.\w+)$", r"\1", url)
+    if upgraded != url:
+        try:
+            resp = httpx.head(
+                upgraded,
+                follow_redirects=True,
+                timeout=5.0,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; Forks/1.0)"},
+            )
+            if resp.status_code == 200:
+                return upgraded
+        except Exception:
+            pass
+    return url
 
 
 def download_image(image_url: str, save_path: Path) -> bool:
