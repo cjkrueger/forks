@@ -155,6 +155,42 @@
 
   $: renderedBody = renderWithHighlights(displayContent, modifiedSections, scaleFactor);
 
+  // Split rendering for two-column layout: ingredients in sidebar, rest in main
+  function renderFiltered(content: string, modified: Set<string>, scale: number, include: string[] | null): string {
+    const sections = parseSections(content);
+    let html = '';
+    for (const section of sections) {
+      const name = section.name.toLowerCase();
+      if (section.name === '_preamble') continue;
+      if (include !== null) {
+        if (!include.includes(name)) continue;
+      } else {
+        if (name === 'ingredients') continue;
+      }
+      let sectionContent = section.content;
+      if (name === 'ingredients' && scale !== 1) {
+        sectionContent = sectionContent.split('\n').map(line => {
+          if (line.trim().startsWith('- ')) {
+            const parsed = parseIngredient(line.trim());
+            return `- ${formatIngredient(parsed, scale)}`;
+          }
+          return line;
+        }).join('\n');
+      }
+      const isModified = modified.has(section.name);
+      const sectionMd = `## ${section.name}\n\n${sectionContent}`;
+      if (isModified) {
+        html += `<div class="fork-modified">${renderMarkdown(sectionMd)}</div>`;
+      } else {
+        html += renderMarkdown(sectionMd);
+      }
+    }
+    return html;
+  }
+
+  $: ingredientsHtml = renderFiltered(displayContent, modifiedSections, scaleFactor, ['ingredients']);
+  $: mainBodyHtml = renderFiltered(displayContent, modifiedSections, scaleFactor, null);
+
   let isDefault = true;
   $: {
     const stored = localStorage.getItem(`forks-default-${slug}`);
@@ -400,103 +436,115 @@
       </div>
     </div>
 
-    <header class="recipe-header">
-      <div class="meta">
-        {#if recipe.prep_time}
-          <span class="meta-item">
-            <strong>Prep:</strong> {recipe.prep_time}
-          </span>
-        {/if}
-        {#if recipe.cook_time}
-          <span class="meta-item">
-            <strong>Cook:</strong> {recipe.cook_time}
-          </span>
-        {/if}
-        {#if recipe.servings}
-          <span class="meta-item">
-            <strong>Serves:</strong>
-            {#if originalServings}
-              <ServingScaler
-                {originalServings}
-                currentServings={currentServings || originalServings}
-                on:change={(e) => currentServings = e.detail.servings}
-              />
-            {:else}
-              {recipe.servings}
-            {/if}
-          </span>
+    {#if mergeMessage}
+      <p class="merge-message">{mergeMessage}</p>
+    {/if}
+
+    {#if historyOpen}
+      <div class="history-panel">
+        <h3>Fork History</h3>
+        {#if historyLoading}
+          <p class="history-loading">Loading history...</p>
+        {:else if historyEntries.length === 0}
+          <p class="history-empty">No history available</p>
+        {:else}
+          <div class="history-timeline">
+            {#each historyEntries as entry}
+              <div class="history-entry">
+                <span class="history-date">{new Date(entry.date).toLocaleDateString()}</span>
+                <span class="history-message">{entry.message}</span>
+              </div>
+            {/each}
+          </div>
         {/if}
       </div>
+    {/if}
 
-      {#if recipe.cook_history && recipe.cook_history.length > 0}
-        <CookHistory slug={recipe.slug} cookHistory={recipe.cook_history} />
-      {/if}
-
-      {#if recipe.tags.length > 0}
-        <div class="tags">
-          {#each recipe.tags as tag}
-            <a href="/?tags={tag}" class="tag">{tag}</a>
-          {/each}
-        </div>
-      {/if}
-
-      {#if recipe.source}
-        <a href={recipe.source} class="source-link" target="_blank" rel="noopener">
-          View original source &rarr;
-        </a>
-      {/if}
-
-      {#if recipe.author}
-        <p class="recipe-author">by {recipe.author}</p>
-      {/if}
-
-      {#if mergeMessage}
-        <p class="merge-message">{mergeMessage}</p>
-      {/if}
-
-      {#if historyOpen}
-        <div class="history-panel">
-          <h3>Fork History</h3>
-          {#if historyLoading}
-            <p class="history-loading">Loading history...</p>
-          {:else if historyEntries.length === 0}
-            <p class="history-empty">No history available</p>
-          {:else}
-            <div class="history-timeline">
-              {#each historyEntries as entry}
-                <div class="history-entry">
-                  <span class="history-date">{new Date(entry.date).toLocaleDateString()}</span>
-                  <span class="history-message">{entry.message}</span>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      {#if streamOpen}
-        <div class="stream-panel">
-          <h3>Recipe Stream</h3>
-          {#if streamLoading}
-            <p class="stream-loading">Loading timeline...</p>
-          {:else if streamEvents.length === 0}
-            <p class="stream-empty">No history available</p>
-          {:else}
-            <StreamGraph events={streamEvents} onForkClick={handleStreamForkClick} />
-          {/if}
-        </div>
-      {/if}
-
-      {#if selectedFork && forkDetail?.author}
-        <p class="fork-author">by {forkDetail.author}</p>
-      {/if}
-    </header>
+    {#if streamOpen}
+      <div class="stream-panel">
+        <h3>Recipe Stream</h3>
+        {#if streamLoading}
+          <p class="stream-loading">Loading timeline...</p>
+        {:else if streamEvents.length === 0}
+          <p class="stream-empty">No history available</p>
+        {:else}
+          <StreamGraph events={streamEvents} onForkClick={handleStreamForkClick} />
+        {/if}
+      </div>
+    {/if}
 
     {#if forkLoading}
       <p class="loading">Loading fork...</p>
     {:else}
-      <div class="recipe-body">
-        {@html renderedBody}
+      <div class="recipe-layout">
+        <aside class="recipe-sidebar">
+          <div class="sidebar-meta">
+            {#if recipe.prep_time}
+              <div class="meta-block">
+                <span class="meta-label">Prep</span>
+                <span class="meta-value">{recipe.prep_time}</span>
+              </div>
+            {/if}
+            {#if recipe.cook_time}
+              <div class="meta-block">
+                <span class="meta-label">Cook</span>
+                <span class="meta-value">{recipe.cook_time}</span>
+              </div>
+            {/if}
+            {#if recipe.servings}
+              <div class="meta-block">
+                <span class="meta-label">Serves</span>
+                <span class="meta-value">
+                  {#if originalServings}
+                    <ServingScaler
+                      {originalServings}
+                      currentServings={currentServings || originalServings}
+                      on:change={(e) => currentServings = e.detail.servings}
+                    />
+                  {:else}
+                    {recipe.servings}
+                  {/if}
+                </span>
+              </div>
+            {/if}
+          </div>
+
+          {#if recipe.cook_history && recipe.cook_history.length > 0}
+            <CookHistory slug={recipe.slug} cookHistory={recipe.cook_history} />
+          {/if}
+
+          {#if recipe.tags.length > 0}
+            <div class="tags">
+              {#each recipe.tags as tag}
+                <a href="/?tags={tag}" class="tag">{tag}</a>
+              {/each}
+            </div>
+          {/if}
+
+          {#if recipe.source}
+            <a href={recipe.source} class="source-link" target="_blank" rel="noopener">
+              View original source &rarr;
+            </a>
+          {/if}
+
+          {#if recipe.author}
+            <p class="recipe-author">by {recipe.author}</p>
+          {/if}
+
+          {#if selectedFork && forkDetail?.author}
+            <p class="fork-author">by {forkDetail.author}</p>
+          {/if}
+
+          <div class="recipe-body sidebar-ingredients">
+            {@html ingredientsHtml}
+          </div>
+        </aside>
+
+        <div class="recipe-main">
+          <div class="recipe-body">
+            {@html mainBodyHtml}
+          </div>
+        </div>
       </div>
     {/if}
   </article>
@@ -504,7 +552,7 @@
 
 <style>
   .recipe {
-    max-width: 720px;
+    max-width: none;
   }
 
   .back-link {
@@ -521,17 +569,18 @@
   /* Hero Banner */
   .hero-banner {
     position: relative;
-    width: 100vw;
-    margin-left: calc(-50vw + 50%);
+    width: 100%;
     height: 50vh;
     max-height: 500px;
     overflow: hidden;
+    border-radius: var(--radius-lg);
   }
 
   .hero-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: var(--radius-lg);
   }
 
   .hero-overlay {
@@ -604,8 +653,74 @@
     margin-bottom: 1rem;
   }
 
-  .recipe-header {
-    margin-bottom: 2rem;
+  /* Two-column layout */
+  .recipe-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+    margin-top: 1rem;
+  }
+
+  .recipe-sidebar {
+    position: sticky;
+    top: 4rem;
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .sidebar-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1rem;
+  }
+
+  .meta-block {
+    text-align: center;
+    padding: 0.25rem;
+  }
+
+  .meta-label {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    margin-bottom: 0.15rem;
+  }
+
+  .meta-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .sidebar-ingredients {
+    padding: 1rem 1.25rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin-top: 1rem;
+  }
+
+  .sidebar-ingredients :global(h2) {
+    margin-top: 0;
+    font-size: 1.1rem;
+  }
+
+  .recipe-main {
+    min-width: 0;
+  }
+
+  .recipe-main :global(h2:first-child) {
+    margin-top: 0;
   }
 
   .version-selector {
@@ -649,22 +764,6 @@
 
   .set-default-link:hover {
     text-decoration: underline;
-  }
-
-  .meta {
-    display: flex;
-    gap: 1.25rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.75rem;
-  }
-
-  .meta-item {
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
-  }
-
-  .meta-item strong {
-    color: var(--color-text);
   }
 
   .tags {
@@ -966,6 +1065,22 @@
 
   .error h2 {
     margin-bottom: 1rem;
+  }
+
+  @media (max-width: 900px) {
+    .recipe-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .recipe-sidebar {
+      position: static;
+      max-height: none;
+      overflow-y: visible;
+    }
+
+    .sidebar-ingredients {
+      margin-bottom: 1rem;
+    }
   }
 
   @media (max-width: 768px) {
