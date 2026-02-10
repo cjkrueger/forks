@@ -31,7 +31,11 @@ def scrape_recipe(url: str) -> Dict[str, Any]:
             headers={"User-Agent": "Mozilla/5.0 (compatible; Forks/1.0)"},
         )
         response.raise_for_status()
-        scraper = scrape_html(response.text, org_url=url)
+        try:
+            scraper = scrape_html(response.text, org_url=url)
+        except Exception:
+            # Site not explicitly supported — fall back to wild mode (JSON-LD/schema.org)
+            scraper = scrape_html(response.text, org_url=url, wild_mode=True)
     except Exception as e:
         logger.error(f"Failed to scrape {url}: {e}")
         return result
