@@ -207,7 +207,7 @@
   }
 
   .error {
-    color: #c0392b;
+    color: var(--color-danger);
     font-size: 0.9rem;
     margin-top: 0.75rem;
     margin-bottom: 0.75rem;

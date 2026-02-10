@@ -94,7 +94,7 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
     z-index: 10;
     margin-top: 0.25rem;
   }
@@ -105,6 +105,7 @@
     border: none;
     border-bottom: 1px solid var(--color-border);
     font-size: 0.85rem;
+    font-family: var(--font-body);
     outline: none;
     background: transparent;
     color: var(--color-text);

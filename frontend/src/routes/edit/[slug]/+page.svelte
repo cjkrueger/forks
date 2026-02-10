@@ -272,22 +272,22 @@
   .delete-btn {
     padding: 0.5rem 1rem;
     background: none;
-    border: 1px solid #c0392b;
+    border: 1px solid var(--color-danger);
     border-radius: var(--radius);
-    color: #c0392b;
+    color: var(--color-danger);
     font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.15s;
   }
 
   .delete-btn:hover {
-    background: #c0392b;
+    background: var(--color-danger);
     color: white;
   }
 
   .delete-confirm {
-    background: #fdf0f0;
-    border: 1px solid #e6c3c3;
+    background: var(--color-danger-light);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius);
     padding: 1rem;
     margin-bottom: 1.5rem;
@@ -305,7 +305,7 @@
 
   .confirm-delete {
     padding: 0.4rem 1rem;
-    background: #c0392b;
+    background: var(--color-danger);
     color: white;
     border: none;
     border-radius: var(--radius);
@@ -327,7 +327,7 @@
   }
 
   .save-error {
-    color: #c0392b;
+    color: var(--color-danger);
     font-size: 0.9rem;
     margin-bottom: 1rem;
   }

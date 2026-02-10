@@ -199,7 +199,7 @@
   }
 
   .required {
-    color: #c0392b;
+    color: var(--color-danger);
   }
 
   .hint {
@@ -224,7 +224,7 @@
   }
 
   .save-error {
-    color: #c0392b;
+    color: var(--color-danger);
     font-size: 0.9rem;
     margin-bottom: 1rem;
   }

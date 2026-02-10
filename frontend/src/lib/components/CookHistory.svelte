@@ -124,7 +124,7 @@
   }
 
   .delete-entry:hover {
-    background: #fdf0f0;
-    color: #c0392b;
+    background: var(--color-danger-light);
+    color: var(--color-danger);
   }
 </style>

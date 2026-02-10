@@ -611,7 +611,7 @@
       display: block;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.3);
+      background: var(--overlay);
       z-index: 260;
       border: none;
       cursor: pointer;
@@ -627,7 +627,7 @@
       background: var(--color-surface);
       border-top-left-radius: 12px;
       border-top-right-radius: 12px;
-      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+      box-shadow: var(--shadow-lg);
       z-index: 270;
       padding: 1rem 1.5rem;
       overflow-y: auto;

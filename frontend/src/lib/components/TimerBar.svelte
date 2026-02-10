@@ -59,7 +59,7 @@
     padding: 0.5rem 1rem;
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--shadow-md);
     z-index: 200;
     overflow-x: auto;
     justify-content: center;
@@ -80,7 +80,7 @@
   }
 
   .timer-pill.done {
-    background: #e74c3c;
+    background: var(--color-danger);
     animation: pulse 1s infinite;
   }
 
@@ -101,7 +101,7 @@
   }
 
   .timer-dismiss {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--overlay-light);
     border: none;
     color: white;
     border-radius: 50%;
@@ -116,6 +116,6 @@
   }
 
   .timer-dismiss:hover {
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--overlay-light);
   }
 </style>

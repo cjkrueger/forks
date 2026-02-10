@@ -50,6 +50,6 @@
 
   .favorite-btn:hover,
   .favorite-btn.active {
-    color: #e74c3c;
+    color: var(--color-danger);
   }
 </style>

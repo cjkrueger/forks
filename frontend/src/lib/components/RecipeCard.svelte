@@ -51,17 +51,18 @@
     display: flex;
     flex-direction: column;
     background: var(--color-surface);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg, var(--radius));
     border: 1px solid var(--color-border);
     overflow: hidden;
     text-decoration: none;
     color: var(--color-text);
-    transition: box-shadow 0.2s, transform 0.2s;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
   }
 
   .card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--shadow-md);
     transform: translateY(-2px);
+    border-color: transparent;
     text-decoration: none;
   }
 
@@ -75,6 +76,11 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .card:hover .card-image img {
+    transform: scale(1.03);
   }
 
   .placeholder {
@@ -83,17 +89,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--color-text-muted);
   }
 
   .card-body {
-    padding: 1rem;
+    padding: 1rem 1.125rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
   }
 
   .card-title {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     line-height: 1.3;
   }
@@ -124,7 +131,7 @@
   }
 
   .fork-count {
-    background: var(--color-accent-light, var(--color-tag));
+    background: var(--color-accent-light);
     color: var(--color-accent);
   }
 </style>

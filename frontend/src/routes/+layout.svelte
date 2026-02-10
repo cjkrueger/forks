@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { listRecipes } from '$lib/api';
   import { recipeCount } from '$lib/grocery';
+  import { theme, toggleTheme } from '$lib/theme';
   import { onMount } from 'svelte';
 
   let searchQuery = '';
@@ -53,11 +54,11 @@
   <header class="topbar">
     <div class="topbar-left">
       <button class="menu-btn" on:click={() => sidebarOpen = !sidebarOpen} aria-label="Toggle menu">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
         </svg>
       </button>
-      <a href="/" class="logo">Forks</a>
+      <a href="/" class="logo"><em>Forks</em></a>
     </div>
     <form class="search-form" on:submit|preventDefault={handleSearch}>
       <input
@@ -67,16 +68,29 @@
         class="search-input"
       />
     </form>
-    <a href="/add" class="add-btn" aria-label="Add recipe">+ Add</a>
-    <a href="/planner" class="planner-link">Planner</a>
-    <a href="/grocery" class="grocery-link" aria-label="Grocery list">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-      </svg>
-      {#if $recipeCount > 0}
-        <span class="grocery-badge">{$recipeCount}</span>
-      {/if}
-    </a>
+    <nav class="topbar-nav">
+      <a href="/add" class="add-btn" aria-label="Add recipe">+ Add</a>
+      <a href="/planner" class="nav-link">Planner</a>
+      <a href="/grocery" class="nav-link grocery-link" aria-label="Grocery list">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+        </svg>
+        {#if $recipeCount > 0}
+          <span class="grocery-badge">{$recipeCount}</span>
+        {/if}
+      </a>
+      <button class="theme-toggle" on:click={toggleTheme} aria-label="Toggle theme">
+        {#if $theme === 'dark'}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        {:else}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        {/if}
+      </button>
+    </nav>
   </header>
 
   <div class="layout">
@@ -121,7 +135,7 @@
     padding: 0.75rem 1.5rem;
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
   }
 
   .topbar-left {
@@ -140,6 +154,7 @@
   }
 
   .logo {
+    font-family: var(--font-logo);
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--color-accent);
@@ -161,15 +176,23 @@
     padding: 0.5rem 1rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    font-family: var(--font-body);
     background: var(--color-bg);
     color: var(--color-text);
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
 
   .search-input:focus {
     border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-light);
+  }
+
+  .topbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .add-btn {
@@ -181,6 +204,7 @@
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;
+    transition: opacity 0.15s;
   }
 
   .add-btn:hover {
@@ -188,39 +212,34 @@
     text-decoration: none;
   }
 
-  .planner-link {
+  .nav-link {
     font-size: 0.85rem;
     color: var(--color-text-muted);
     text-decoration: none;
-    transition: color 0.15s;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius);
+    transition: color 0.15s, background 0.15s;
   }
 
-  .planner-link:hover {
+  .nav-link:hover {
     color: var(--color-accent);
+    background: var(--color-accent-light);
     text-decoration: none;
   }
 
   .grocery-link {
     position: relative;
-    text-decoration: none;
-    color: var(--color-text-muted);
     display: flex;
     align-items: center;
-    transition: color 0.15s;
-  }
-
-  .grocery-link:hover {
-    color: var(--color-accent);
-    text-decoration: none;
   }
 
   .grocery-badge {
     position: absolute;
-    top: -6px;
-    right: -8px;
+    top: -2px;
+    right: -4px;
     background: var(--color-accent);
     color: white;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 700;
     width: 16px;
     height: 16px;
@@ -230,15 +249,36 @@
     justify-content: center;
   }
 
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+
+  .theme-toggle:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
+
   .layout {
     display: flex;
   }
 
   .sidebar {
     position: sticky;
-    top: 57px;
+    top: 53px;
     width: var(--sidebar-width);
-    height: calc(100vh - 57px);
+    height: calc(100vh - 53px);
     overflow-y: auto;
     padding: 1.5rem 1rem;
     border-right: 1px solid var(--color-border);
@@ -247,17 +287,18 @@
   }
 
   .sidebar-heading {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     color: var(--color-text-muted);
     margin-bottom: 0.75rem;
+    font-weight: 600;
   }
 
   .tag-list {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.125rem;
   }
 
   .tag-btn {
@@ -270,8 +311,9 @@
     background: transparent;
     color: var(--color-text);
     font-size: 0.85rem;
+    font-family: var(--font-body);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, color 0.15s;
     text-align: left;
   }
 
@@ -311,12 +353,12 @@
 
     .sidebar {
       position: fixed;
-      top: 57px;
+      top: 53px;
       left: 0;
       z-index: 50;
       transform: translateX(-100%);
       transition: transform 0.2s ease;
-      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+      box-shadow: var(--shadow-lg);
     }
 
     .sidebar.open {
@@ -327,15 +369,23 @@
       display: block;
       position: fixed;
       inset: 0;
-      top: 57px;
+      top: 53px;
       z-index: 40;
-      background: rgba(0, 0, 0, 0.3);
+      background: var(--overlay);
       border: none;
       cursor: pointer;
     }
 
     .content {
       padding: 1rem;
+    }
+
+    .topbar-nav {
+      gap: 0.25rem;
+    }
+
+    .nav-link:not(.grocery-link) {
+      display: none;
     }
   }
 </style>

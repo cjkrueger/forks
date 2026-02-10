@@ -205,8 +205,8 @@
   }
 
   .action-btn.danger:hover {
-    border-color: #e74c3c;
-    color: #e74c3c;
+    border-color: var(--color-danger);
+    color: var(--color-danger);
   }
 
   .combine-btn {
@@ -381,7 +381,7 @@
   }
 
   .item-remove:hover {
-    color: #e74c3c;
+    color: var(--color-danger);
   }
 
   .remove-btn {
@@ -394,6 +394,6 @@
   }
 
   .remove-btn:hover {
-    color: #e74c3c;
+    color: var(--color-danger);
   }
 </style>
