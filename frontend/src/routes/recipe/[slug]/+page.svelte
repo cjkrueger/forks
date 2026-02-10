@@ -359,7 +359,7 @@
           </div>
           <div class="hero-actions">
             <FavoriteButton slug={recipe.slug} tags={recipe.tags} />
-            <LikeButton slug={recipe.slug} likes={recipe.likes} />
+            <LikeButton likes={recipe.likes} />
           </div>
         </div>
       </div>
@@ -1096,13 +1096,14 @@
       font-size: 1.5rem;
     }
 
-    .action-bar {
-      overflow-x: auto;
-      white-space: nowrap;
+    .recipe-actions {
+      flex-wrap: wrap;
     }
 
-    .recipe-actions {
-      flex-wrap: nowrap;
+    .recipe-actions :global(button),
+    .recipe-actions :global(a) {
+      font-size: 0.8rem;
+      padding: 0.35rem 0.75rem;
     }
 
     .recipe-body {

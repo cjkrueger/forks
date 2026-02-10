@@ -11,10 +11,12 @@
   let searchQuery = '';
   let allTags: { name: string; count: number }[] = [];
   let sidebarOpen = false;
+  let sidebarCollapsed = false;
 
   $: activeTags = $page.url.searchParams.get('tags')?.split(',').filter(Boolean) || [];
 
   onMount(async () => {
+    sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
     try {
       const settings = await getSettings();
       startSyncPolling(settings.sync.interval_seconds * 1000, settings.sync.enabled);
@@ -41,6 +43,15 @@
     }
   }
 
+  function toggleSidebar() {
+    if (window.innerWidth <= 768) {
+      sidebarOpen = !sidebarOpen;
+    } else {
+      sidebarCollapsed = !sidebarCollapsed;
+      localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+    }
+  }
+
   function toggleTag(tag: string) {
     let tags = [...activeTags];
     if (tags.includes(tag)) {
@@ -60,12 +71,22 @@
 <div class="app">
   <header class="topbar">
     <div class="topbar-left">
-      <button class="menu-btn" on:click={() => sidebarOpen = !sidebarOpen} aria-label="Toggle menu">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
+      <button class="menu-btn" on:click={toggleSidebar} aria-label="Toggle tags">
+        <span class="menu-hash">#</span>
       </button>
-      <a href="/" class="logo"><em>Forks</em></a>
+      <a href="/" class="logo">
+        <svg class="logo-icon" viewBox="0 0 600 600" aria-label="Forks">
+          <defs>
+            <clipPath id="logo-rounded"><rect width="600" height="600" rx="72" ry="72"/></clipPath>
+          </defs>
+          <g clip-path="url(#logo-rounded)">
+            <g transform="translate(0,600) scale(.1,-.1)" fill="currentColor">
+              <path d="M0 4303l0-1698 1432 1432 1433 1432 59 17c148 42 297-42 337-189 14-52 6-133-16-178-9-19-635-653-1390-1409-1262-1264-1374-1379-1389-1424-43-132 11-269 129-326 62-30 160-29 224 2 35 17 371 347 1409 1385 749 750 1376 1370 1392 1378 131 68 295 15 363-115 25-49 28-63 24-130-2-45-11-89-21-110-10-19-636-654-1391-1410l-1374-1375-16-59c-59-205 116-380 321-321l59 17 1380 1378c1318 1316 1382 1378 1433 1395 158 51 323-41 350-194 11-62 2-132-23-181-9-17-630-645-1381-1396-1009-1009-1370-1376-1384-1407-23-51-27-162-6-211 52-124 196-185 332-140 45 15 160 127 1424 1389 756 755 1390 1381 1409 1390 44 22 126 30 176 16 149-40 233-188 190-337l-16-59-1432-1433-1432-1432 1698 0 1697 0 0 3000 0 3000-3000 0-3000 0 0-1697z"/>
+            </g>
+          </g>
+        </svg>
+        <em class="logo-text">Forks</em>
+      </a>
     </div>
     <form class="search-form" on:submit|preventDefault={handleSearch}>
       <input
@@ -124,7 +145,7 @@
   </header>
 
   <div class="layout">
-    <aside class="sidebar" class:open={sidebarOpen}>
+    <aside class="sidebar" class:open={sidebarOpen} class:collapsed={sidebarCollapsed}>
       <nav class="tag-list">
         <h3 class="sidebar-heading">Tags</h3>
         {#each allTags as tag}
@@ -176,12 +197,26 @@
   }
 
   .menu-btn {
-    display: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-text);
+    color: var(--color-text-muted);
     padding: 0.25rem;
+    transition: color 0.15s;
+  }
+
+  .menu-btn:hover {
+    color: var(--color-accent);
+  }
+
+  .menu-hash {
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-family: var(--font-body);
+    line-height: 1;
   }
 
   .logo {
@@ -191,15 +226,27 @@
     color: var(--color-accent);
     text-decoration: none;
     letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
   }
 
   .logo:hover {
     text-decoration: none;
   }
 
+  .logo-icon {
+    height: 28px;
+    width: 28px;
+    display: none;
+  }
+
+  .logo-text {
+    display: inline;
+  }
+
   .search-form {
     flex: 1;
-    max-width: 560px;
+    min-width: 0;
   }
 
   .search-input {
@@ -223,7 +270,7 @@
   .topbar-nav {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
     flex-shrink: 0;
   }
 
@@ -356,6 +403,7 @@
 
   .layout {
     display: flex;
+    overflow: hidden;
   }
 
   .sidebar {
@@ -368,6 +416,14 @@
     border-right: 1px solid var(--color-border);
     background: var(--color-surface);
     flex-shrink: 0;
+    transition: margin-left 0.2s ease;
+  }
+
+  /* Desktop: slide sidebar off-screen and collapse its space */
+  @media (min-width: 769px) {
+    .sidebar.collapsed {
+      margin-left: calc(-1 * var(--sidebar-width) - 1px);
+    }
   }
 
   .sidebar-heading {
@@ -423,7 +479,7 @@
   .content {
     flex: 1;
     padding: 2rem;
-    max-width: 1200px;
+    min-width: 0;
   }
 
   .overlay {
@@ -449,17 +505,17 @@
 
   /* Mobile: sidebar as overlay, compact topbar */
   @media (max-width: 768px) {
-    .menu-btn {
-      display: block;
-    }
-
     .topbar {
       padding: 0.6rem 1rem;
       gap: 0.75rem;
     }
 
-    .search-form {
-      max-width: none;
+    .logo-icon {
+      display: block;
+    }
+
+    .logo-text {
+      display: none;
     }
 
     .topbar-nav {

@@ -284,7 +284,7 @@
 
 <style>
   .home {
-    max-width: 1000px;
+    max-width: 100%;
   }
 
   .result-info {

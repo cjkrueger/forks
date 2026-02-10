@@ -227,7 +227,7 @@
 
 <style>
   .planner {
-    max-width: 1100px;
+    max-width: 100%;
   }
 
   .planner-header {
