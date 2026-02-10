@@ -25,6 +25,7 @@ export interface RecipeSummary {
   image: string | null;
   forks: ForkSummary[];
   cook_history: CookHistoryEntry[];
+  likes: number;
 }
 
 export interface Recipe extends RecipeSummary {

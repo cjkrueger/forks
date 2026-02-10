@@ -37,10 +37,18 @@
         {#if recipe.forks && recipe.forks.length > 0}
           <span class="tag fork-count">{recipe.forks.length} {recipe.forks.length === 1 ? 'fork' : 'forks'}</span>
         {/if}
+        {#if recipe.likes > 0}
+          <span class="card-likes">&hearts; {recipe.likes}</span>
+        {/if}
       </div>
-    {:else if recipe.forks && recipe.forks.length > 0}
+    {:else if recipe.forks && recipe.forks.length > 0 || recipe.likes > 0}
       <div class="card-tags">
-        <span class="tag fork-count">{recipe.forks.length} {recipe.forks.length === 1 ? 'fork' : 'forks'}</span>
+        {#if recipe.forks && recipe.forks.length > 0}
+          <span class="tag fork-count">{recipe.forks.length} {recipe.forks.length === 1 ? 'fork' : 'forks'}</span>
+        {/if}
+        {#if recipe.likes > 0}
+          <span class="card-likes">&hearts; {recipe.likes}</span>
+        {/if}
       </div>
     {/if}
   </div>
@@ -133,5 +141,11 @@
   .fork-count {
     background: var(--color-accent-light);
     color: var(--color-accent);
+  }
+
+  .card-likes {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    margin-left: auto;
   }
 </style>

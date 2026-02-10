@@ -233,6 +233,12 @@ export async function getRecipeStream(slug: string): Promise<StreamTimeline> {
   return res.json();
 }
 
+export async function likeRecipe(slug: string): Promise<{ likes: number }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/like`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to like recipe');
+  return res.json();
+}
+
 export async function mergeFork(slug: string, forkName: string): Promise<{ merged: boolean }> {
   const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/merge`, { method: 'POST' });
   if (!res.ok) {

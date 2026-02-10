@@ -10,6 +10,7 @@
   import CookMode from '$lib/components/CookMode.svelte';
   import CookHistory from '$lib/components/CookHistory.svelte';
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
+  import LikeButton from '$lib/components/LikeButton.svelte';
   import ServingScaler from '$lib/components/ServingScaler.svelte';
   import StreamGraph from '$lib/components/StreamGraph.svelte';
 
@@ -316,6 +317,7 @@
       <div class="title-row">
         <h1>{displayTitle}</h1>
         <FavoriteButton slug={recipe.slug} tags={recipe.tags} />
+        <LikeButton slug={recipe.slug} likes={recipe.likes} />
       </div>
 
       {#if recipe.forks.length > 0}
