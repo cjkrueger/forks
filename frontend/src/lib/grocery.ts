@@ -77,6 +77,26 @@ export function clearChecked() {
   });
 }
 
+export function removeItem(key: string) {
+  groceryStore.update(store => {
+    if (key.startsWith('custom:')) {
+      const name = key.slice(7);
+      store.customCombines = store.customCombines.filter(c => c.name !== name);
+    } else {
+      for (const slug of Object.keys(store.recipes)) {
+        store.recipes[slug].items = store.recipes[slug].items.filter(
+          item => ingredientKey(item) !== key
+        );
+        if (store.recipes[slug].items.length === 0) {
+          delete store.recipes[slug];
+        }
+      }
+    }
+    store.checked = store.checked.filter(k => k !== key);
+    return store;
+  });
+}
+
 export function clearAll() {
   groceryStore.set({ recipes: {}, checked: [], customCombines: [] });
 }

@@ -6,6 +6,7 @@
     clearChecked,
     clearAll,
     removeRecipeFromGrocery,
+    removeItem,
     addCustomCombine,
   } from '$lib/grocery';
   import type { MergedItem } from '$lib/grocery';
@@ -117,6 +118,7 @@
             <button class="select-btn" class:active={selected.has(item.key)} on:click={() => toggleSelect(item.key)} aria-label="Select for combining">
               {selected.has(item.key) ? '\u2713' : '\u25CB'}
             </button>
+            <button class="item-remove" on:click={() => removeItem(item.key)} aria-label="Remove item">&times;</button>
           </li>
         {/each}
       </ul>
@@ -131,6 +133,7 @@
               <input type="checkbox" checked={item.checked} on:change={() => toggleChecked(item.key)} />
               <span class="item-text">{item.displayText}</span>
             </label>
+            <button class="item-remove" on:click={() => removeItem(item.key)} aria-label="Remove item">&times;</button>
           </li>
         {/each}
       </ul>
@@ -358,6 +361,27 @@
   .fork-tag, .servings-tag {
     font-size: 0.75rem;
     color: var(--color-text-muted);
+  }
+
+  .item-remove {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 0.15rem;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+
+  .item:hover .item-remove {
+    opacity: 1;
+  }
+
+  .item-remove:hover {
+    color: #e74c3c;
   }
 
   .remove-btn {

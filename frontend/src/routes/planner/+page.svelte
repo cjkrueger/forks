@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getMealPlan, saveMealPlan, listRecipes } from '$lib/api';
+  import { getMealPlan, saveMealPlan, listRecipes, getRecipe } from '$lib/api';
   import type { RecipeSummary } from '$lib/types';
   import RecipePicker from '$lib/components/RecipePicker.svelte';
+  import { addRecipeToGrocery } from '$lib/grocery';
+  import { parseSections } from '$lib/sections';
 
   interface PlanSlot {
     slug: string;
@@ -96,6 +98,43 @@
     save();
   }
 
+  let addingToGrocery = false;
+
+  function getIngredientLines(content: string): string[] {
+    const sections = parseSections(content);
+    for (const section of sections) {
+      if (section.name.toLowerCase() === 'ingredients') {
+        return section.content.split('\n')
+          .map(l => l.trim())
+          .filter(l => l.startsWith('- '))
+          .map(l => l.replace(/^-\s*/, ''));
+      }
+    }
+    return [];
+  }
+
+  async function addAllToGrocery() {
+    addingToGrocery = true;
+    const seen = new Set<string>();
+    for (const day of days) {
+      for (const meal of day.meals) {
+        const key = meal.fork ? `${meal.slug}:${meal.fork}` : meal.slug;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        try {
+          const recipe = await getRecipe(meal.slug);
+          const lines = getIngredientLines(recipe.content);
+          if (lines.length > 0) {
+            addRecipeToGrocery(meal.slug, meal.title, lines, meal.fork || null, recipe.servings);
+          }
+        } catch (e) {
+          console.error(`Failed to fetch recipe ${meal.slug}`, e);
+        }
+      }
+    }
+    addingToGrocery = false;
+  }
+
   function prevWeek() {
     weekOffset--;
     loadWeek();
@@ -127,10 +166,17 @@
 <div class="planner">
   <div class="planner-header">
     <h1>Meal Planner</h1>
-    <div class="week-nav">
-      <button on:click={prevWeek}>&larr;</button>
-      <span class="week-label">{weekLabel}</span>
-      <button on:click={nextWeek}>&rarr;</button>
+    <div class="planner-actions">
+      <div class="week-nav">
+        <button on:click={prevWeek}>&larr;</button>
+        <span class="week-label">{weekLabel}</span>
+        <button on:click={nextWeek}>&rarr;</button>
+      </div>
+      {#if days.some(d => d.meals.length > 0)}
+        <button class="grocery-btn" on:click={addAllToGrocery} disabled={addingToGrocery}>
+          {addingToGrocery ? 'Adding...' : 'Add all to grocery list'}
+        </button>
+      {/if}
     </div>
   </div>
 
@@ -177,6 +223,35 @@
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
     gap: 1rem;
+  }
+
+  .planner-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .grocery-btn {
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius);
+    background: var(--color-accent);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+
+  .grocery-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .grocery-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
 
   .planner-header h1 {
