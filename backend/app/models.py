@@ -3,6 +3,12 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+class ChangelogEntry(BaseModel):
+    date: str
+    action: str
+    summary: str
+
+
 class ForkSummary(BaseModel):
     name: str
     fork_name: str
@@ -10,6 +16,7 @@ class ForkSummary(BaseModel):
     date_added: Optional[str] = None
     merged_at: Optional[str] = None
     forked_at_commit: Optional[str] = None
+    changelog: List[ChangelogEntry] = []
 
 
 class CookHistoryEntry(BaseModel):
@@ -26,9 +33,12 @@ class RecipeSummary(BaseModel):
     cook_time: Optional[str] = None
     date_added: Optional[str] = None
     source: Optional[str] = None
+    author: Optional[str] = None
     image: Optional[str] = None
     forks: List[ForkSummary] = []
     cook_history: List[CookHistoryEntry] = []
+    likes: int = 0
+    changelog: List[ChangelogEntry] = []
 
 
 class Recipe(RecipeSummary):

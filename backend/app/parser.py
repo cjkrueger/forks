@@ -5,9 +5,22 @@ import frontmatter
 
 from typing import List
 
-from app.models import Recipe, RecipeSummary, ForkSummary, CookHistoryEntry
+from app.models import Recipe, RecipeSummary, ForkSummary, CookHistoryEntry, ChangelogEntry
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_changelog(meta: dict) -> List[ChangelogEntry]:
+    raw = meta.get("changelog", [])
+    entries = []
+    for item in raw:
+        if isinstance(item, dict):
+            entries.append(ChangelogEntry(
+                date=str(item.get("date", "")),
+                action=str(item.get("action", "")),
+                summary=str(item.get("summary", "")),
+            ))
+    return entries
 
 
 def _parse_cook_history(meta: dict) -> List[CookHistoryEntry]:
@@ -45,8 +58,11 @@ def parse_frontmatter(path: Path) -> RecipeSummary:
         cook_time=meta.get("cook_time"),
         date_added=str(meta.get("date_added")) if meta.get("date_added") else None,
         source=meta.get("source"),
+        author=meta.get("author"),
         image=meta.get("image"),
         cook_history=_parse_cook_history(meta),
+        likes=int(meta.get("likes", 0)),
+        changelog=_parse_changelog(meta),
     )
 
 
@@ -73,8 +89,11 @@ def parse_recipe(path: Path) -> Recipe:
         cook_time=meta.get("cook_time"),
         date_added=str(meta.get("date_added")) if meta.get("date_added") else None,
         source=meta.get("source"),
+        author=meta.get("author"),
         image=meta.get("image"),
         cook_history=_parse_cook_history(meta),
+        likes=int(meta.get("likes", 0)),
+        changelog=_parse_changelog(meta),
         content=content,
     )
 
@@ -99,4 +118,5 @@ def parse_fork_frontmatter(path: Path) -> ForkSummary:
         date_added=str(meta.get("date_added")) if meta.get("date_added") else None,
         merged_at=str(meta.get("merged_at")) if meta.get("merged_at") else None,
         forked_at_commit=meta.get("forked_at_commit"),
+        changelog=_parse_changelog(meta),
     )

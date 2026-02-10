@@ -103,4 +103,14 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         return {"favorited": False}
 
+    @router.post("/like", status_code=200)
+    def like_recipe(slug: str):
+        path, post = _load_post(slug)
+        current = int(post.metadata.get("likes", 0))
+        current += 1
+        post.metadata["likes"] = current
+        _save(path, post)
+        git_commit(recipes_dir, path, f"Like: {slug}")
+        return {"likes": current}
+
     return router

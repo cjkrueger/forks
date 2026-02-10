@@ -12,7 +12,9 @@ class RecipeInput(BaseModel):
     prep_time: Optional[str] = None
     cook_time: Optional[str] = None
     source: Optional[str] = None
+    author: Optional[str] = None
     image: Optional[str] = None
+    likes: int = 0
     ingredients: List[str] = []
     instructions: List[str] = []
     notes: List[str] = []
@@ -47,6 +49,9 @@ def generate_markdown(data: RecipeInput) -> str:
     if data.source:
         lines.append(f"source: {data.source}")
 
+    if data.author:
+        lines.append(f"author: {data.author}")
+
     if data.tags:
         tag_list = ", ".join(data.tags)
         lines.append(f"tags: [{tag_list}]")
@@ -64,6 +69,9 @@ def generate_markdown(data: RecipeInput) -> str:
 
     if data.image:
         lines.append(f"image: {data.image}")
+
+    if data.likes:
+        lines.append(f"likes: {data.likes}")
 
     lines.append("---")
 
