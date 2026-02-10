@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.index import RecipeIndex
 from app.routes.editor import create_editor_router
+from app.routes.forks import create_fork_router
 from app.routes.recipes import create_recipe_router
 from app.watcher import start_watcher
 
@@ -27,6 +28,7 @@ def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
     # Register API routes
     app.include_router(create_recipe_router(index))
     app.include_router(create_editor_router(index, recipes_path))
+    app.include_router(create_fork_router(index, recipes_path))
 
     # Serve recipe images
     images_dir = recipes_path / "images"
