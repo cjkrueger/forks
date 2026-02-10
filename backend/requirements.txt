@@ -6,3 +6,4 @@ pydantic==2.10.6
 pydantic-settings==2.7.1
 pytest==8.3.4
 httpx==0.28.1
+recipe-scrapers==15.5.0
