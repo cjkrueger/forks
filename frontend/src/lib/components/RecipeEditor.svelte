@@ -25,6 +25,24 @@
   let uploadError = '';
   let fileInput: HTMLInputElement;
 
+  // Ingredient amount validation
+  let flaggedIngredients: string[] = [];
+  let showAmountWarning = false;
+
+  // Reset warning when ingredients change
+  $: if (ingredients) {
+    showAmountWarning = false;
+    flaggedIngredients = [];
+  }
+
+  function getFlaggedIngredients(text: string): string[] {
+    return text
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+      .filter(line => !/^[\d\u00BC-\u00BE\u2150-\u215E]/.test(line));
+  }
+
   $: previewSrc = (() => {
     if (imageMode === 'current' && imagePreviewUrl && image) return imagePreviewUrl;
     if (imageMode === 'url' && imageUrl.trim()) return imageUrl.trim();
@@ -81,6 +99,14 @@
   }
 
   function handleSubmit() {
+    // Check for ingredients without amounts
+    const flagged = getFlaggedIngredients(ingredients);
+    if (flagged.length > 0 && !showAmountWarning) {
+      flaggedIngredients = flagged;
+      showAmountWarning = true;
+      return;
+    }
+
     const data: RecipeInput = {
       title: title.trim(),
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -94,7 +120,13 @@
       instructions: instructions.split('\n').map(l => l.trim()).filter(Boolean),
       notes: notes.split('\n').map(l => l.trim()).filter(Boolean),
     };
+    showAmountWarning = false;
     onSave(data);
+  }
+
+  function dismissWarning() {
+    showAmountWarning = false;
+    flaggedIngredients = [];
   }
 </script>
 
@@ -194,6 +226,21 @@
     <label for="notes">Notes <span class="hint">optional, one per line</span></label>
     <textarea id="notes" bind:value={notes} rows="4" placeholder="Great for weeknight dinners&#10;Can substitute..."></textarea>
   </div>
+
+  {#if showAmountWarning}
+    <div class="amount-warning">
+      <p class="amount-warning-title">Some ingredients may be missing amounts:</p>
+      <ul class="amount-warning-list">
+        {#each flaggedIngredients as line}
+          <li>{line}</li>
+        {/each}
+      </ul>
+      <div class="amount-warning-actions">
+        <button type="button" class="img-btn secondary" on:click={dismissWarning}>Go back and fix</button>
+        <button type="submit" class="img-btn">Save anyway</button>
+      </div>
+    </div>
+  {/if}
 
   <div class="actions">
     <button type="submit" class="btn-save" disabled={saving || !title.trim()}>
@@ -420,6 +467,36 @@
   .btn-cancel {
     font-size: 0.9rem;
     color: var(--color-text-muted);
+  }
+
+  .amount-warning {
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .amount-warning-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+  }
+
+  .amount-warning-list {
+    margin: 0 0 0.75rem 1.25rem;
+    padding: 0;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .amount-warning-list li {
+    margin-bottom: 0.25rem;
+  }
+
+  .amount-warning-actions {
+    display: flex;
+    gap: 0.5rem;
   }
 
   @media (max-width: 768px) {

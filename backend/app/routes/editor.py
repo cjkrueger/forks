@@ -11,6 +11,7 @@ from app.changelog import append_changelog_entry
 from app.generator import RecipeInput, slugify, generate_markdown
 from app.git import git_commit, git_rm
 from app.index import RecipeIndex
+from app.normalizer import normalize_ingredients
 from app.scraper import scrape_recipe, download_image
 from app.sections import detect_changed_sections
 from app.tagger import auto_tag
@@ -45,6 +46,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         data = scrape_recipe(req.url)
         if not data.get("title"):
             raise HTTPException(status_code=422, detail="Could not extract recipe from URL")
+        data["ingredients"] = normalize_ingredients(data.get("ingredients", []))
         data["tags"] = auto_tag(
             title=data.get("title", ""),
             ingredients=data.get("ingredients", []),
@@ -77,8 +79,11 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         elif data.image:
             image_field = data.image
 
-        # Generate markdown with the local image path
-        recipe_data = data.model_copy(update={"image": image_field})
+        # Normalize ingredients and generate markdown with the local image path
+        recipe_data = data.model_copy(update={
+            "image": image_field,
+            "ingredients": normalize_ingredients(data.ingredients),
+        })
         markdown = generate_markdown(recipe_data)
         filepath.write_text(markdown)
 
@@ -125,7 +130,10 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         elif data.image:
             image_field = data.image
 
-        recipe_data = data.model_copy(update={"image": image_field})
+        recipe_data = data.model_copy(update={
+            "image": image_field,
+            "ingredients": normalize_ingredients(data.ingredients),
+        })
         markdown = generate_markdown(recipe_data)
         filepath.write_text(markdown)
 
