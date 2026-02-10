@@ -1,16 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory } from '$lib/api';
+  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory, mergeFork, getRecipeStream } from '$lib/api';
   import { renderMarkdown } from '$lib/markdown';
   import { mergeContent, getModifiedSections, parseSections } from '$lib/sections';
   import { parseIngredient, formatIngredient } from '$lib/ingredients';
   import { groceryStore, addRecipeToGrocery, removeRecipeFromGrocery } from '$lib/grocery';
-  import type { Recipe, ForkDetail } from '$lib/types';
+  import type { Recipe, ForkDetail, StreamEvent } from '$lib/types';
   import CookMode from '$lib/components/CookMode.svelte';
   import CookHistory from '$lib/components/CookHistory.svelte';
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
   import ServingScaler from '$lib/components/ServingScaler.svelte';
+  import StreamGraph from '$lib/components/StreamGraph.svelte';
 
   let recipe: Recipe | null = null;
   let loading = true;
@@ -29,6 +30,15 @@
   let historyOpen = false;
   let historyEntries: { hash: string; date: string; message: string; content?: string }[] = [];
   let historyLoading = false;
+
+  // Merge state
+  let merging = false;
+  let mergeMessage = '';
+
+  // Stream state
+  let streamEvents: StreamEvent[] = [];
+  let streamOpen = false;
+  let streamLoading = false;
 
   // Scaling state
   let currentServings: number | null = null;
@@ -222,6 +232,41 @@
     historyLoading = false;
   }
 
+  async function handleMergeFork() {
+    if (!recipe || !selectedFork) return;
+    if (!confirm(`Merge "${forkDetail?.fork_name}" changes into the original recipe?`)) return;
+    merging = true;
+    mergeMessage = '';
+    try {
+      await mergeFork(recipe.slug, selectedFork);
+      recipe = await getRecipe(slug);
+      if (selectedFork) await selectFork(selectedFork);
+      mergeMessage = 'Fork merged into original';
+    } catch (e: any) {
+      mergeMessage = e.message || 'Merge failed';
+    }
+    merging = false;
+  }
+
+  async function toggleStream() {
+    if (streamOpen) { streamOpen = false; return; }
+    if (!recipe) return;
+    streamLoading = true;
+    streamOpen = true;
+    try {
+      const data = await getRecipeStream(recipe.slug);
+      streamEvents = data.events;
+    } catch (e) {
+      streamEvents = [];
+    }
+    streamLoading = false;
+  }
+
+  function handleStreamForkClick(forkSlug: string) {
+    selectFork(forkSlug);
+    streamOpen = false;
+  }
+
   function getIngredientLines(content: string): string[] {
     const sections = parseSections(content);
     for (const section of sections) {
@@ -286,9 +331,13 @@
             <button
               class="version-pill"
               class:active={selectedFork === fork.name}
+              class:merged={fork.merged_at != null}
               on:click={() => selectFork(fork.name)}
             >
               {fork.fork_name}
+              {#if fork.merged_at}
+                <span class="merged-badge">Merged</span>
+              {/if}
             </button>
           {/each}
         </div>
@@ -363,6 +412,9 @@
         {#if selectedFork}
           <a href="/edit/{recipe.slug}?fork={selectedFork}" class="edit-btn">Edit Fork</a>
           <a href={exportForkUrl(recipe.slug, selectedFork)} class="edit-btn" download>Export</a>
+          <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
+            {merging ? 'Merging...' : 'Merge into Original'}
+          </button>
         {:else}
           <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
         {/if}
@@ -373,7 +425,14 @@
             {historyOpen ? 'Hide History' : 'History'}
           </button>
         {/if}
+        <button class="history-btn" on:click={toggleStream}>
+          {streamOpen ? 'Hide Stream' : 'Stream'}
+        </button>
       </div>
+
+      {#if mergeMessage}
+        <p class="merge-message">{mergeMessage}</p>
+      {/if}
 
       {#if historyOpen}
         <div class="history-panel">
@@ -391,6 +450,19 @@
                 </div>
               {/each}
             </div>
+          {/if}
+        </div>
+      {/if}
+
+      {#if streamOpen}
+        <div class="stream-panel">
+          <h3>Recipe Stream</h3>
+          {#if streamLoading}
+            <p class="stream-loading">Loading timeline...</p>
+          {:else if streamEvents.length === 0}
+            <p class="stream-empty">No history available</p>
+          {:else}
+            <StreamGraph events={streamEvents} onForkClick={handleStreamForkClick} />
           {/if}
         </div>
       {/if}
@@ -683,6 +755,65 @@
   .history-loading, .history-empty {
     font-size: 0.85rem;
     color: var(--color-text-muted);
+  }
+
+  .stream-panel {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  .stream-panel h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .stream-loading, .stream-empty {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .merge-btn {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    color: var(--color-accent);
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .merge-btn:hover {
+    background: var(--color-accent);
+    color: white;
+  }
+
+  .merge-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .merge-message {
+    font-size: 0.85rem;
+    color: var(--color-accent);
+    margin-top: 0.5rem;
+  }
+
+  .version-pill.merged {
+    opacity: 0.7;
+  }
+
+  .merged-badge {
+    font-size: 0.65rem;
+    background: var(--color-tag);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-left: 0.25rem;
   }
 
   .fork-author {
