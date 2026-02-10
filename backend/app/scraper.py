@@ -8,11 +8,17 @@ from recipe_scrapers import scrape_html
 
 logger = logging.getLogger(__name__)
 
+_BROWSER_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+
 
 def scrape_recipe(url: str) -> Dict[str, Any]:
     """Scrape a recipe from a URL and return structured data."""
     result: Dict[str, Any] = {
         "title": None,
+        "author": None,
         "ingredients": [],
         "instructions": [],
         "prep_time": None,
@@ -29,7 +35,7 @@ def scrape_recipe(url: str) -> Dict[str, Any]:
             url,
             follow_redirects=True,
             timeout=15.0,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; Forks/1.0)"},
+            headers={"User-Agent": _BROWSER_UA},
         )
         response.raise_for_status()
         try:
@@ -38,8 +44,13 @@ def scrape_recipe(url: str) -> Dict[str, Any]:
             # Site not explicitly supported — fall back to wild mode (JSON-LD/schema.org)
             scraper = scrape_html(response.text, org_url=url, wild_mode=True)
     except Exception as e:
-        logger.error(f"Failed to scrape {url}: {e}")
-        return result
+        # Direct fetch failed (e.g. 403) — let recipe_scrapers fetch the page itself
+        logger.info(f"Direct fetch failed for {url}, trying online mode: {e}")
+        try:
+            scraper = scrape_html(None, org_url=url, online=True)
+        except Exception as e2:
+            logger.error(f"Failed to scrape {url}: {e2}")
+            return result
 
     try:
         result["title"] = scraper.title()
@@ -93,6 +104,13 @@ def scrape_recipe(url: str) -> Dict[str, Any]:
     except Exception:
         pass
 
+    try:
+        author = scraper.author()
+        if author:
+            result["author"] = author
+    except Exception:
+        pass
+
     return result
 
 
@@ -109,7 +127,7 @@ def _upgrade_image_url(url: str) -> str:
                 upgraded,
                 follow_redirects=True,
                 timeout=5.0,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; Forks/1.0)"},
+                headers={"User-Agent": _BROWSER_UA},
             )
             if resp.status_code == 200:
                 return upgraded
@@ -125,7 +143,7 @@ def download_image(image_url: str, save_path: Path) -> bool:
             image_url,
             follow_redirects=True,
             timeout=15.0,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; Forks/1.0)"},
+            headers={"User-Agent": _BROWSER_UA},
         )
         response.raise_for_status()
 

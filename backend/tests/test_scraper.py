@@ -15,6 +15,7 @@ def _make_mock_scraper(
     total_time=35,
     yields="4 servings",
     image="https://example.com/image.jpg",
+    author="Test Author",
 ):
     """Create a mock scraper object with configurable return values."""
     scraper = MagicMock()
@@ -26,6 +27,7 @@ def _make_mock_scraper(
     scraper.total_time.return_value = total_time
     scraper.yields.return_value = yields
     scraper.image.return_value = image
+    scraper.author.return_value = author
     return scraper
 
 
@@ -44,6 +46,7 @@ def test_scrape_recipe_with_mock(mock_get, mock_scrape_html):
     result = scrape_recipe("https://example.com/recipe")
 
     assert result["title"] == "Test Recipe"
+    assert result["author"] == "Test Author"
     assert result["ingredients"] == ["1 cup flour", "2 eggs", "1 tsp salt"]
     assert result["instructions"] == ["Step one", "Step two", "Step three"]
     assert result["prep_time"] == "10min"
@@ -57,21 +60,24 @@ def test_scrape_recipe_with_mock(mock_get, mock_scrape_html):
         "https://example.com/recipe",
         follow_redirects=True,
         timeout=15.0,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; Forks/1.0)"},
+        headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"},
     )
     mock_scrape_html.assert_called_once_with(
         "<html>recipe page</html>", org_url="https://example.com/recipe"
     )
 
 
+@patch("app.scraper.scrape_html")
 @patch("app.scraper.httpx.get")
-def test_scrape_recipe_handles_failure(mock_get):
-    """Network failure returns the default empty result without crashing."""
+def test_scrape_recipe_handles_failure(mock_get, mock_scrape_html):
+    """Network failure falls back to online mode; if that also fails, returns empty result."""
     mock_get.side_effect = httpx.ConnectError("Connection refused")
+    mock_scrape_html.side_effect = Exception("Online mode also failed")
 
     result = scrape_recipe("https://bad-url.example.com/recipe")
 
     assert result["title"] is None
+    assert result["author"] is None
     assert result["ingredients"] == []
     assert result["instructions"] == []
     assert result["prep_time"] is None
@@ -101,11 +107,13 @@ def test_scrape_recipe_handles_partial_data(mock_get, mock_scrape_html):
     scraper.total_time.side_effect = Exception("not available")
     scraper.yields.side_effect = Exception("not available")
     scraper.image.side_effect = Exception("not available")
+    scraper.author.side_effect = Exception("not available")
     mock_scrape_html.return_value = scraper
 
     result = scrape_recipe("https://example.com/partial")
 
     assert result["title"] == "Partial Recipe"
+    assert result["author"] is None
     assert result["ingredients"] == ["some ingredient"]
     assert result["instructions"] == []
     assert result["prep_time"] is None
@@ -136,7 +144,7 @@ def test_download_image_success(mock_get, tmp_path):
         "https://example.com/photo.png",
         follow_redirects=True,
         timeout=15.0,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; Forks/1.0)"},
+        headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"},
     )
 
 

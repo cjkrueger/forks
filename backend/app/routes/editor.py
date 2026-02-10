@@ -3,13 +3,16 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
+import frontmatter
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
+from app.changelog import append_changelog_entry
 from app.generator import RecipeInput, slugify, generate_markdown
 from app.git import git_commit, git_rm
 from app.index import RecipeIndex
 from app.scraper import scrape_recipe, download_image
+from app.sections import detect_changed_sections
 from app.tagger import auto_tag
 
 logger = logging.getLogger(__name__)
@@ -21,6 +24,7 @@ class ScrapeRequest(BaseModel):
 
 class ScrapeResponse(BaseModel):
     title: Optional[str] = None
+    author: Optional[str] = None
     tags: list = []
     ingredients: list = []
     instructions: list = []
@@ -62,12 +66,14 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         # Download image if provided
         image_field = None
+        failed_image_url = None
         if data.image and data.image.startswith("http"):
-            # This is a URL to download
             ext = _get_image_ext(data.image)
             image_path = recipes_dir / "images" / f"{slug}{ext}"
             if download_image(data.image, image_path):
                 image_field = f"images/{slug}{ext}"
+            else:
+                failed_image_url = data.image
         elif data.image:
             image_field = data.image
 
@@ -75,12 +81,26 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         recipe_data = data.model_copy(update={"image": image_field})
         markdown = generate_markdown(recipe_data)
         filepath.write_text(markdown)
-        git_commit(recipes_dir, filepath, f"Create recipe: {data.title}")
+
+        # Append changelog entry
+        post = frontmatter.load(filepath)
+        append_changelog_entry(post, "created", "Created")
+        filepath.write_text(frontmatter.dumps(post))
+
+        commit_paths = [filepath]
+        if image_field and not image_field.startswith("http"):
+            commit_paths.append(recipes_dir / image_field)
+        git_commit(recipes_dir, commit_paths, f"Create recipe: {data.title}")
 
         # Update index
         index.add_or_update(filepath)
 
-        return index.get(slug)
+        recipe = index.get(slug)
+        if failed_image_url:
+            data = recipe.model_dump()
+            data["_image_failed"] = failed_image_url
+            return data
+        return recipe
 
     @router.put("/recipes/{slug}")
     def update_recipe(slug: str, data: RecipeInput):
@@ -88,23 +108,52 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         if not filepath.exists():
             raise HTTPException(status_code=404, detail="Recipe not found")
 
+        # Read old content before overwriting
+        old_post = frontmatter.load(filepath)
+        old_content = old_post.content
+
         # Handle image
         image_field = None
+        failed_image_url = None
         if data.image and data.image.startswith("http"):
             ext = _get_image_ext(data.image)
             image_path = recipes_dir / "images" / f"{slug}{ext}"
             if download_image(data.image, image_path):
                 image_field = f"images/{slug}{ext}"
+            else:
+                failed_image_url = data.image
         elif data.image:
             image_field = data.image
 
         recipe_data = data.model_copy(update={"image": image_field})
         markdown = generate_markdown(recipe_data)
         filepath.write_text(markdown)
-        git_commit(recipes_dir, filepath, f"Update recipe: {data.title}")
+
+        # Detect changed sections and append changelog entry
+        new_post = frontmatter.load(filepath)
+        new_content = new_post.content
+        changed = detect_changed_sections(old_content, new_content)
+        if changed:
+            summary = "Edited " + ", ".join(changed)
+        else:
+            summary = "Edited metadata"
+        # Carry forward existing changelog from the old post
+        new_post.metadata["changelog"] = old_post.metadata.get("changelog", [])
+        append_changelog_entry(new_post, "edited", summary)
+        filepath.write_text(frontmatter.dumps(new_post))
+
+        commit_paths = [filepath]
+        if image_field and not image_field.startswith("http"):
+            commit_paths.append(recipes_dir / image_field)
+        git_commit(recipes_dir, commit_paths, f"Update recipe: {data.title}")
 
         index.add_or_update(filepath)
-        return index.get(slug)
+        recipe = index.get(slug)
+        if failed_image_url:
+            data = recipe.model_dump()
+            data["_image_failed"] = failed_image_url
+            return data
+        return recipe
 
     @router.delete("/recipes/{slug}", status_code=204)
     def delete_recipe(slug: str):
@@ -112,14 +161,16 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         if not filepath.exists():
             raise HTTPException(status_code=404, detail="Recipe not found")
 
-        filepath.unlink()
-        git_commit(recipes_dir, filepath, f"Delete recipe: {slug}")
-
-        # Also delete image if it exists
+        # Collect image paths before deleting
+        commit_paths = [filepath]
         images_dir = recipes_dir / "images"
         if images_dir.exists():
             for img in images_dir.glob(f"{slug}.*"):
+                commit_paths.append(img)
                 img.unlink()
+
+        filepath.unlink()
+        git_commit(recipes_dir, commit_paths, f"Delete recipe: {slug}")
 
         index.remove(slug)
 
@@ -153,6 +204,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         content = await file.read()
         dest.write_bytes(content)
+        git_commit(recipes_dir, dest, f"Add image: {dest.name}")
 
         return {"path": f"images/{dest.name}"}
 
