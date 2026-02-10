@@ -1,4 +1,4 @@
-import type { Recipe, RecipeInput, RecipeSummary, ScrapeResponse } from './types';
+import type { Recipe, RecipeInput, RecipeSummary, ScrapeResponse, ForkDetail, ForkInput } from './types';
 
 const BASE = '/api';
 
@@ -67,4 +67,45 @@ export async function updateRecipe(slug: string, data: RecipeInput): Promise<Rec
 export async function deleteRecipe(slug: string): Promise<void> {
   const res = await fetch(`${BASE}/recipes/${slug}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Delete failed');
+}
+
+export async function getFork(slug: string, forkName: string): Promise<ForkDetail> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}`);
+  if (!res.ok) throw new Error('Fork not found');
+  return res.json();
+}
+
+export async function createFork(slug: string, data: ForkInput): Promise<{ name: string; fork_name: string }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Create fork failed' }));
+    throw new Error(err.detail || 'Create fork failed');
+  }
+  return res.json();
+}
+
+export async function updateFork(slug: string, forkName: string, data: ForkInput): Promise<{ name: string; fork_name: string }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Update fork failed' }));
+    throw new Error(err.detail || 'Update fork failed');
+  }
+  return res.json();
+}
+
+export async function deleteFork(slug: string, forkName: string): Promise<void> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Delete fork failed');
+}
+
+export function exportForkUrl(slug: string, forkName: string): string {
+  return `${BASE}/recipes/${slug}/forks/${forkName}/export`;
 }

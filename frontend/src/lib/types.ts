@@ -1,3 +1,10 @@
+export interface ForkSummary {
+  name: string;
+  fork_name: string;
+  author: string | null;
+  date_added: string | null;
+}
+
 export interface RecipeSummary {
   slug: string;
   title: string;
@@ -8,10 +15,30 @@ export interface RecipeSummary {
   date_added: string | null;
   source: string | null;
   image: string | null;
+  forks: ForkSummary[];
 }
 
 export interface Recipe extends RecipeSummary {
   content: string;
+}
+
+export interface ForkDetail extends ForkSummary {
+  content: string;
+}
+
+export interface ForkInput {
+  fork_name: string;
+  author: string | null;
+  title: string;
+  tags: string[];
+  servings: string | null;
+  prep_time: string | null;
+  cook_time: string | null;
+  source: string | null;
+  image: string | null;
+  ingredients: string[];
+  instructions: string[];
+  notes: string[];
 }
 
 export interface ScrapeResponse {
