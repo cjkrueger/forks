@@ -306,20 +306,32 @@
     <a href="/" class="back-link">&larr; All recipes</a>
 
     {#if recipe.image}
-      <img
-        src="/api/images/{recipe.image.replace('images/', '')}"
-        alt={recipe.title}
-        class="hero-image"
-      />
+      <div class="hero-banner">
+        <img
+          src="/api/images/{recipe.image.replace('images/', '')}"
+          alt={recipe.title}
+          class="hero-image"
+        />
+        <div class="hero-overlay">
+          <div class="hero-content">
+            <h1 class="hero-title">{displayTitle}</h1>
+            <div class="hero-meta">
+              {#if recipe.prep_time}<span>Prep: {recipe.prep_time}</span>{/if}
+              {#if recipe.cook_time}<span>Cook: {recipe.cook_time}</span>{/if}
+              {#if recipe.servings}<span>Serves: {currentServings ?? recipe.servings}</span>{/if}
+            </div>
+          </div>
+          <div class="hero-actions">
+            <FavoriteButton slug={recipe.slug} tags={recipe.tags} />
+            <LikeButton slug={recipe.slug} likes={recipe.likes} />
+          </div>
+        </div>
+      </div>
+    {:else}
+      <h1 class="no-hero-title">{displayTitle}</h1>
     {/if}
 
-    <header class="recipe-header">
-      <div class="title-row">
-        <h1>{displayTitle}</h1>
-        <FavoriteButton slug={recipe.slug} tags={recipe.tags} />
-        <LikeButton slug={recipe.slug} likes={recipe.likes} />
-      </div>
-
+    <div class="action-bar">
       {#if recipe.forks.length > 0}
         <div class="version-selector">
           <button
@@ -350,6 +362,45 @@
         {/if}
       {/if}
 
+      <div class="recipe-actions">
+        <button class="cook-btn" on:click={enterCookMode}>Start Cooking</button>
+        {#if onGroceryList}
+          <button class="grocery-btn on-list" on:click={() => { if (recipe) removeRecipeFromGrocery(recipe.slug); }}>
+            On Grocery List
+          </button>
+        {:else}
+          <button class="grocery-btn" on:click={() => {
+            if (recipe) {
+              const lines = getIngredientLines(displayContent);
+              addRecipeToGrocery(recipe.slug, displayTitle, lines, selectedFork, currentServings ? String(currentServings) : recipe.servings);
+            }
+          }}>
+            Add to Grocery List
+          </button>
+        {/if}
+        {#if selectedFork}
+          <a href="/edit/{recipe.slug}?fork={selectedFork}" class="edit-btn">Edit Fork</a>
+          <a href={exportForkUrl(recipe.slug, selectedFork)} class="edit-btn" download>Export</a>
+          <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
+            {merging ? 'Merging...' : 'Merge into Original'}
+          </button>
+        {:else}
+          <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
+        {/if}
+        <a href="/fork/{recipe.slug}" class="fork-btn">Fork This Recipe</a>
+        <button class="print-btn" on:click={() => window.print()}>Print</button>
+        {#if selectedFork}
+          <button class="history-btn" on:click={toggleHistory}>
+            {historyOpen ? 'Hide History' : 'History'}
+          </button>
+        {/if}
+        <button class="history-btn" on:click={toggleStream}>
+          {streamOpen ? 'Hide Stream' : 'Stream'}
+        </button>
+      </div>
+    </div>
+
+    <header class="recipe-header">
       <div class="meta">
         {#if recipe.prep_time}
           <span class="meta-item">
@@ -398,43 +449,6 @@
       {#if recipe.author}
         <p class="recipe-author">by {recipe.author}</p>
       {/if}
-
-      <div class="recipe-actions">
-        <button class="cook-btn" on:click={enterCookMode}>Start Cooking</button>
-        {#if onGroceryList}
-          <button class="grocery-btn on-list" on:click={() => { if (recipe) removeRecipeFromGrocery(recipe.slug); }}>
-            On Grocery List
-          </button>
-        {:else}
-          <button class="grocery-btn" on:click={() => {
-            if (recipe) {
-              const lines = getIngredientLines(displayContent);
-              addRecipeToGrocery(recipe.slug, displayTitle, lines, selectedFork, currentServings ? String(currentServings) : recipe.servings);
-            }
-          }}>
-            Add to Grocery List
-          </button>
-        {/if}
-        {#if selectedFork}
-          <a href="/edit/{recipe.slug}?fork={selectedFork}" class="edit-btn">Edit Fork</a>
-          <a href={exportForkUrl(recipe.slug, selectedFork)} class="edit-btn" download>Export</a>
-          <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
-            {merging ? 'Merging...' : 'Merge into Original'}
-          </button>
-        {:else}
-          <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
-        {/if}
-        <a href="/fork/{recipe.slug}" class="fork-btn">Fork This Recipe</a>
-        <button class="print-btn" on:click={() => window.print()}>Print</button>
-        {#if selectedFork}
-          <button class="history-btn" on:click={toggleHistory}>
-            {historyOpen ? 'Hide History' : 'History'}
-          </button>
-        {/if}
-        <button class="history-btn" on:click={toggleStream}>
-          {streamOpen ? 'Hide Stream' : 'Stream'}
-        </button>
-      </div>
 
       {#if mergeMessage}
         <p class="merge-message">{mergeMessage}</p>
@@ -504,30 +518,94 @@
     color: var(--color-accent);
   }
 
+  /* Hero Banner */
+  .hero-banner {
+    position: relative;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    height: 50vh;
+    max-height: 500px;
+    overflow: hidden;
+  }
+
   .hero-image {
     width: 100%;
-    max-height: 400px;
+    height: 100%;
     object-fit: cover;
-    border-radius: var(--radius);
-    margin-bottom: 1.5rem;
+  }
+
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 2rem;
+  }
+
+  .hero-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .hero-title {
+    color: white;
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  .hero-meta {
+    display: flex;
+    gap: 1rem;
+    color: rgba(255,255,255,0.85);
+    font-size: 0.9rem;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-self: flex-start;
+    padding-top: 1rem;
+  }
+
+  /* Override button colors in hero for visibility */
+  .hero-actions :global(.like-btn),
+  .hero-actions :global(.favorite-btn) {
+    color: rgba(255,255,255,0.85);
+  }
+
+  .hero-actions :global(.like-btn:hover),
+  .hero-actions :global(.favorite-btn:hover) {
+    color: white;
+  }
+
+  .hero-actions :global(.favorite-btn.active) {
+    color: white;
+  }
+
+  .no-hero-title {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+  }
+
+  /* Sticky Action Bar */
+  .action-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.75rem 0;
+    margin-bottom: 1rem;
   }
 
   .recipe-header {
     margin-bottom: 2rem;
-  }
-
-  .title-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .title-row h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1.2;
-    margin-bottom: 0;
   }
 
   .version-selector {
@@ -566,7 +644,7 @@
     font-size: 0.8rem;
     cursor: pointer;
     padding: 0;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   .set-default-link:hover {
@@ -620,7 +698,7 @@
   .recipe-actions {
     display: flex;
     gap: 0.5rem;
-    margin-top: 0.75rem;
+    flex-wrap: wrap;
   }
 
   .cook-btn {
@@ -891,8 +969,29 @@
   }
 
   @media (max-width: 768px) {
-    .title-row h1 {
+    .hero-banner {
+      height: 35vh;
+    }
+
+    .hero-title {
       font-size: 1.5rem;
+    }
+
+    .hero-overlay {
+      padding: 1rem;
+    }
+
+    .no-hero-title {
+      font-size: 1.5rem;
+    }
+
+    .action-bar {
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .recipe-actions {
+      flex-wrap: nowrap;
     }
 
     .recipe-body {

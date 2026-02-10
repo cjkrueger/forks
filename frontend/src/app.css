@@ -111,8 +111,27 @@ textarea::placeholder {
   .discovery-chips,
   .fork-author,
   .history-panel,
-  .history-btn {
+  .history-btn,
+  .action-bar,
+  .hero-overlay,
+  .hero-actions {
     display: none !important;
+  }
+
+  /* Show hero image naturally in print */
+  .hero-banner {
+    position: static !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .hero-image {
+    width: 100% !important;
+    max-height: 300px !important;
+    object-fit: cover !important;
+    border-radius: 0 !important;
   }
 
   /* Remove fork highlight borders */
