@@ -78,6 +78,10 @@
           View original source &rarr;
         </a>
       {/if}
+
+      <div class="recipe-actions">
+        <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
+      </div>
     </header>
 
     <div class="recipe-body">
@@ -163,6 +167,27 @@
   .source-link {
     font-size: 0.85rem;
     color: var(--color-accent);
+  }
+
+  .recipe-actions {
+    margin-top: 0.75rem;
+  }
+
+  .edit-btn {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+
+  .edit-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    text-decoration: none;
   }
 
   .recipe-body {
