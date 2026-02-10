@@ -663,11 +663,7 @@
   }
 
   .recipe-sidebar {
-    position: sticky;
-    top: 4rem;
-    max-height: calc(100vh - 5rem);
-    overflow-y: auto;
-    scrollbar-width: thin;
+    position: static;
   }
 
   .sidebar-meta {

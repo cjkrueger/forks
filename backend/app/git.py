@@ -44,16 +44,21 @@ def git_init_if_needed(recipes_dir: Path) -> None:
         logger.exception("Failed to initialize git repo")
 
 
-def git_commit(recipes_dir: Path, path: Path, message: str) -> None:
-    """Stage a file and commit. Fire-and-forget: failures logged, never raised."""
+def git_commit(recipes_dir: Path, path, message: str) -> None:
+    """Stage file(s) and commit. Fire-and-forget: failures logged, never raised.
+
+    path can be a single Path or a list of Paths.
+    """
     try:
-        subprocess.run(
-            ["git", "add", str(path.relative_to(recipes_dir))],
-            cwd=str(recipes_dir),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        paths = path if isinstance(path, list) else [path]
+        for p in paths:
+            subprocess.run(
+                ["git", "add", str(p.relative_to(recipes_dir))],
+                cwd=str(recipes_dir),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
         subprocess.run(
             ["git", "commit", "-m", message],
             cwd=str(recipes_dir),

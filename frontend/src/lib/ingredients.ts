@@ -2,6 +2,7 @@ export interface ParsedIngredient {
   quantity: number | null;
   unit: string | null;
   name: string;
+  displayText: string;
   original: string;
 }
 
@@ -88,34 +89,31 @@ export function parseIngredient(line: string): ParsedIngredient {
   // Strip leading "- "
   text = text.replace(/^-\s*/, '');
 
-  // Strip parentheticals like "(14 oz)"
-  text = text.replace(PARENTHETICAL, ' ').trim();
-
-  // Strip prep words
-  text = text.replace(PREP_WORDS, '').trim();
+  // Strip parentheticals like "(14 oz)" for parsing only
+  let parseText = text.replace(PARENTHETICAL, ' ').trim();
 
   // Try to extract quantity
   let quantity: number | null = null;
-  let rest = text;
+  let rest = parseText;
 
   // Check for word numbers first: "one large onion", "half a lemon"
-  const wordMatch = text.match(/^(one|two|three|four|five|six|seven|eight|nine|ten|half|a|an)\b\s*/i);
+  const wordMatch = parseText.match(/^(one|two|three|four|five|six|seven|eight|nine|ten|half|a|an)\b\s*/i);
   if (wordMatch) {
     const word = wordMatch[1].toLowerCase();
     if (word in WORD_NUMBERS) {
       quantity = WORD_NUMBERS[word];
-      rest = text.slice(wordMatch[0].length);
+      rest = parseText.slice(wordMatch[0].length);
     }
   }
 
   if (quantity === null) {
     // Try numeric patterns: "2 1/2", "1/3", "2-3", "2.5", unicode fractions
-    const numMatch = text.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?|[^\x00-\x7F])/);
+    const numMatch = parseText.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?|[^\x00-\x7F])/);
     if (numMatch) {
       const parsed = parseFraction(numMatch[1].trim());
       if (parsed !== null) {
         quantity = parsed;
-        rest = text.slice(numMatch[0].length).trim();
+        rest = parseText.slice(numMatch[0].length).trim();
       }
     }
   }
@@ -134,9 +132,14 @@ export function parseIngredient(line: string): ParsedIngredient {
   // Strip "of " after unit
   rest = rest.replace(/^of\s+/i, '');
 
-  const name = rest.toLowerCase().trim() || original.toLowerCase();
+  // displayText: full text after qty/unit (preserves prep words, parentheticals in rest)
+  const displayText = rest.trim();
 
-  return { quantity, unit, name, original };
+  // name: stripped of prep words for grocery aggregation
+  const strippedRest = rest.replace(PREP_WORDS, '').trim();
+  const name = strippedRest.toLowerCase() || original.toLowerCase();
+
+  return { quantity, unit, name, displayText, original };
 }
 
 export function formatQuantity(qty: number): string {
@@ -172,7 +175,7 @@ export function formatIngredient(parsed: ParsedIngredient, scaleFactor: number =
     displayUnit = unit + 's';
   }
 
-  return [qtyStr, displayUnit, parsed.name].filter(Boolean).join(' ');
+  return [qtyStr, displayUnit, parsed.displayText].filter(Boolean).join(' ');
 }
 
 export function ingredientKey(parsed: ParsedIngredient): string {

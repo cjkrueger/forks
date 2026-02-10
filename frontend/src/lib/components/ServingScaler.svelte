@@ -7,15 +7,13 @@
   const dispatch = createEventDispatcher();
 
   function decrease() {
-    const step = originalServings;
-    const next = currentServings - step;
-    if (next >= Math.ceil(step / 2)) {
-      dispatch('change', { servings: next });
+    if (currentServings > 1) {
+      dispatch('change', { servings: currentServings - 1 });
     }
   }
 
   function increase() {
-    dispatch('change', { servings: currentServings + originalServings });
+    dispatch('change', { servings: currentServings + 1 });
   }
 
   $: isDefault = currentServings === originalServings;

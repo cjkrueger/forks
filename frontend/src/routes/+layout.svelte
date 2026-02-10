@@ -2,7 +2,7 @@
   import '../app.css';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { listRecipes } from '$lib/api';
+  import { listRecipes, getSettings } from '$lib/api';
   import { recipeCount } from '$lib/grocery';
   import { startSyncPolling, syncStatus, isConnected } from '$lib/sync';
   import { theme, toggleTheme } from '$lib/theme';
@@ -15,7 +15,12 @@
   $: activeTags = $page.url.searchParams.get('tags')?.split(',').filter(Boolean) || [];
 
   onMount(async () => {
-    startSyncPolling();
+    try {
+      const settings = await getSettings();
+      startSyncPolling(settings.sync.interval_seconds * 1000, settings.sync.enabled);
+    } catch {
+      startSyncPolling();
+    }
     const recipes = await listRecipes();
     const tagMap = new Map<string, number>();
     for (const r of recipes) {
