@@ -1,4 +1,5 @@
 import logging
+import random as _random
 import re
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -7,6 +8,7 @@ import frontmatter
 
 from app.models import RecipeSummary, Recipe, ForkSummary
 from app.parser import parse_frontmatter, parse_recipe, parse_fork_frontmatter
+from app.tagger import _parse_minutes
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +89,42 @@ class RecipeIndex:
             r for r in self._index.values()
             if all(tag in r.tags for tag in tags)
         ]
+        return sorted(results, key=lambda r: r.title.lower())
+
+    def random(self) -> Optional[RecipeSummary]:
+        """Return a random recipe summary, or None if the index is empty."""
+        if not self._index:
+            return None
+        return _random.choice(list(self._index.values()))
+
+    def _apply_tags(self, tags: Optional[List[str]]) -> List[RecipeSummary]:
+        """Return all recipes, optionally filtered by tags."""
+        if tags:
+            return self.filter_by_tags(tags)
+        return list(self._index.values())
+
+    def filter_never_cooked(self, tags: Optional[List[str]] = None) -> List[RecipeSummary]:
+        """Return recipes that have never been cooked (empty cook_history)."""
+        recipes = self._apply_tags(tags)
+        results = [r for r in recipes if len(r.cook_history) == 0]
+        return sorted(results, key=lambda r: r.title.lower())
+
+    def filter_least_recent(self, tags: Optional[List[str]] = None) -> List[RecipeSummary]:
+        """Return recipes sorted by oldest cook date (only those with history)."""
+        recipes = self._apply_tags(tags)
+        cooked = [r for r in recipes if len(r.cook_history) > 0]
+        return sorted(cooked, key=lambda r: max(e.date for e in r.cook_history))
+
+    def filter_quick(self, tags: Optional[List[str]] = None) -> List[RecipeSummary]:
+        """Return recipes where prep_time + cook_time <= 30 minutes."""
+        recipes = self._apply_tags(tags)
+        results = []
+        for r in recipes:
+            prep = _parse_minutes(r.prep_time) or 0
+            cook = _parse_minutes(r.cook_time) or 0
+            total = prep + cook
+            if total > 0 and total <= 30:
+                results.append(r)
         return sorted(results, key=lambda r: r.title.lower())
 
     def get(self, slug: str) -> Optional[Recipe]:
