@@ -10,6 +10,11 @@ class ForkSummary(BaseModel):
     date_added: Optional[str] = None
 
 
+class CookHistoryEntry(BaseModel):
+    date: str
+    fork: Optional[str] = None
+
+
 class RecipeSummary(BaseModel):
     slug: str
     title: str
@@ -21,6 +26,7 @@ class RecipeSummary(BaseModel):
     source: Optional[str] = None
     image: Optional[str] = None
     forks: List[ForkSummary] = []
+    cook_history: List[CookHistoryEntry] = []
 
 
 class Recipe(RecipeSummary):

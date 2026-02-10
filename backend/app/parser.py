@@ -3,9 +3,25 @@ from pathlib import Path
 
 import frontmatter
 
-from app.models import Recipe, RecipeSummary, ForkSummary
+from typing import List
+
+from app.models import Recipe, RecipeSummary, ForkSummary, CookHistoryEntry
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_cook_history(meta: dict) -> List[CookHistoryEntry]:
+    raw = meta.get("cook_history", [])
+    entries = []
+    for item in raw:
+        if isinstance(item, dict):
+            entries.append(CookHistoryEntry(
+                date=str(item.get("date", "")),
+                fork=item.get("fork"),
+            ))
+        elif isinstance(item, str):
+            entries.append(CookHistoryEntry(date=item))
+    return entries
 
 
 def parse_frontmatter(path: Path) -> RecipeSummary:
@@ -30,6 +46,7 @@ def parse_frontmatter(path: Path) -> RecipeSummary:
         date_added=str(meta.get("date_added")) if meta.get("date_added") else None,
         source=meta.get("source"),
         image=meta.get("image"),
+        cook_history=_parse_cook_history(meta),
     )
 
 
@@ -57,6 +74,7 @@ def parse_recipe(path: Path) -> Recipe:
         date_added=str(meta.get("date_added")) if meta.get("date_added") else None,
         source=meta.get("source"),
         image=meta.get("image"),
+        cook_history=_parse_cook_history(meta),
         content=content,
     )
 
