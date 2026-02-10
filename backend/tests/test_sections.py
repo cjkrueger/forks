@@ -6,6 +6,7 @@ from app.sections import (
     diff_sections,
     generate_fork_markdown,
     merge_content,
+    merge_fork_into_base,
 )
 
 
@@ -116,3 +117,44 @@ class TestMergeContent:
         fork = "## Ingredients\n\n- whole wheat flour"
         merged = merge_content(base, fork)
         assert "# My Recipe" in merged
+
+
+class TestMergeForkIntoBase:
+    def test_merges_changed_ingredients(self):
+        base = "# Cookies\n\n## Ingredients\n\n- 1 cup butter\n- 2 cups flour\n\n## Instructions\n\n1. Mix\n2. Bake\n"
+        fork = "## Ingredients\n\n- 1 cup coconut oil\n- 2 cups flour\n"
+        result = merge_fork_into_base(base, fork)
+        assert "coconut oil" in result
+        assert "butter" not in result
+        assert "## Instructions" in result
+        assert "Mix" in result
+
+    def test_preserves_preamble(self):
+        base = "# Cookies\n\n## Ingredients\n\n- butter\n\n## Notes\n\n- old note\n"
+        fork = "## Notes\n\n- new note\n"
+        result = merge_fork_into_base(base, fork)
+        assert "new note" in result
+        assert "old note" not in result
+        assert "# Cookies" in result
+
+    def test_no_fork_sections_returns_base(self):
+        base = "# Title\n\n## Ingredients\n\n- flour\n"
+        result = merge_fork_into_base(base, "")
+        assert "flour" in result
+
+
+class TestGenerateForkMarkdownForkedAtCommit:
+    def test_includes_forked_at_commit(self):
+        result = generate_fork_markdown(
+            "test-recipe", "My Fork",
+            {"Ingredients": "- flour"},
+            forked_at_commit="abc123def456",
+        )
+        assert "forked_at_commit: abc123def456" in result
+
+    def test_omits_forked_at_commit_when_none(self):
+        result = generate_fork_markdown(
+            "test-recipe", "My Fork",
+            {"Ingredients": "- flour"},
+        )
+        assert "forked_at_commit" not in result

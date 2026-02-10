@@ -1,4 +1,5 @@
 """Tests for fork CRUD API routes."""
+import subprocess
 import textwrap
 from pathlib import Path
 
@@ -42,9 +43,16 @@ BASE_RECIPE = textwrap.dedent("""\
 
 @pytest.fixture
 def tmp_recipes(tmp_path):
-    """Create a temp recipes directory with a base recipe."""
+    """Create a temp recipes directory with a base recipe and git repo."""
     recipe = tmp_path / "chocolate-cookies.md"
     recipe.write_text(BASE_RECIPE)
+    # Initialize a git repo so git operations (head hash, commits) work in tests
+    subprocess.run(["git", "init"], cwd=str(tmp_path), capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=str(tmp_path), capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit", "--allow-empty"],
+        cwd=str(tmp_path), capture_output=True,
+    )
     return tmp_path
 
 
@@ -316,3 +324,42 @@ class TestExportFork:
         assert "coconut oil" in body
         # Base instruction content should still be present
         assert "Preheat oven" in body
+
+
+class TestForkCreationTracksCommit:
+    def test_fork_file_contains_forked_at_commit(self, client, tmp_recipes):
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        fork_file = tmp_recipes / "chocolate-cookies.fork.vegan-version.md"
+        content = fork_file.read_text()
+        assert "forked_at_commit:" in content
+
+
+class TestMergeFork:
+    def test_merge_fork_into_base(self, client, tmp_recipes):
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        assert resp.status_code == 200
+        assert resp.json()["merged"] is True
+        base_content = (tmp_recipes / "chocolate-cookies.md").read_text()
+        assert "coconut oil" in base_content
+
+    def test_merge_sets_merged_at_on_fork(self, client, tmp_recipes):
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        fork_content = (tmp_recipes / "chocolate-cookies.fork.vegan-version.md").read_text()
+        assert "merged_at:" in fork_content
+
+    def test_merge_fork_not_found(self, client):
+        resp = client.post("/api/recipes/chocolate-cookies/forks/nonexistent/merge")
+        assert resp.status_code == 404
+
+    def test_merge_base_not_found(self, client):
+        resp = client.post("/api/recipes/nonexistent/forks/some-fork/merge")
+        assert resp.status_code == 404
+
+    def test_merged_fork_shows_in_index(self, client):
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        resp = client.get("/api/recipes/chocolate-cookies")
+        fork = resp.json()["forks"][0]
+        assert fork["merged_at"] is not None

@@ -77,6 +77,7 @@ def generate_fork_markdown(
     fork_name: str,
     changed_sections: Dict[str, str],
     author: Optional[str] = None,
+    forked_at_commit: Optional[str] = None,
 ) -> str:
     """Generate a fork markdown file with frontmatter and changed sections."""
     lines = []
@@ -86,6 +87,8 @@ def generate_fork_markdown(
     if author:
         lines.append(f"author: {author}")
     lines.append(f"date_added: {datetime.date.today().isoformat()}")
+    if forked_at_commit:
+        lines.append(f"forked_at_commit: {forked_at_commit}")
     lines.append("---")
 
     for section_name, content in changed_sections.items():
@@ -135,6 +138,15 @@ def merge_content(base_content: str, fork_content: str) -> str:
 
     lines.append("")
     return "\n".join(lines)
+
+
+def merge_fork_into_base(base_content: str, fork_content: str) -> str:
+    """Merge a fork's changes back into the base recipe content.
+
+    This is an explicit alias for merge_content, used at the merge endpoint
+    call site to clarify intent.
+    """
+    return merge_content(base_content, fork_content)
 
 
 def _normalize(text: str) -> str:
