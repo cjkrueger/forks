@@ -1,0 +1,9 @@
+.git
+**/__pycache__
+**/node_modules
+**/.svelte-kit
+**/venv
+backend/tests
+docs/
+*.md
+!recipes/*.md

@@ -1,0 +1,10 @@
+services:
+  forks:
+    build: .
+    ports:
+      - "8420:8000"
+    volumes:
+      - ./recipes:/data/recipes
+    environment:
+      - FORKS_RECIPES_DIR=/data/recipes
+    restart: unless-stopped
