@@ -6,10 +6,12 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.git import git_init_if_needed
 from app.index import RecipeIndex
 from app.routes.cook import create_cook_router
 from app.routes.editor import create_editor_router
 from app.routes.forks import create_fork_router
+from app.routes.planner import create_planner_router
 from app.routes.recipes import create_recipe_router
 from app.watcher import start_watcher
 
@@ -31,6 +33,7 @@ def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
     app.include_router(create_editor_router(index, recipes_path))
     app.include_router(create_fork_router(index, recipes_path))
     app.include_router(create_cook_router(index, recipes_path))
+    app.include_router(create_planner_router(recipes_path))
 
     # Serve recipe images
     images_dir = recipes_path / "images"
@@ -40,6 +43,7 @@ def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
     # Start file watcher
     @app.on_event("startup")
     def startup():
+        git_init_if_needed(recipes_path)
         start_watcher(index, recipes_path)
 
     # Serve frontend static files (in production)

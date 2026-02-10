@@ -7,6 +7,7 @@ import frontmatter
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.git import git_commit
 from app.index import RecipeIndex
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         post.metadata["cook_history"] = history
         _save(path, post)
+        git_commit(recipes_dir, path, f"Log cook: {slug}")
         return {"cook_history": history}
 
     @router.delete("/cook-history/{entry_index}")
@@ -68,6 +70,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         history.pop(entry_index)
         post.metadata["cook_history"] = history
         _save(path, post)
+        git_commit(recipes_dir, path, f"Delete cook entry: {slug}")
         return {"cook_history": history}
 
     @router.post("/favorite", status_code=200)
@@ -81,6 +84,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             tags.append("favorite")
             post.metadata["tags"] = tags
             _save(path, post)
+            git_commit(recipes_dir, path, f"Favorite: {slug}")
 
         return {"favorited": True}
 
@@ -95,6 +99,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             tags = [t for t in tags if t != "favorite"]
             post.metadata["tags"] = tags
             _save(path, post)
+            git_commit(recipes_dir, path, f"Unfavorite: {slug}")
 
         return {"favorited": False}
 

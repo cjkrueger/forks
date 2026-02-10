@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from app.generator import slugify
+from app.git import git_commit, git_log, git_rm, git_show
 from app.index import RecipeIndex
 from app.models import ForkDetail, ForkInput
 from app.sections import diff_sections, generate_fork_markdown, merge_content
@@ -71,6 +72,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             author=data.author,
         )
         path.write_text(md)
+        git_commit(recipes_dir, path, f"Create fork: {data.fork_name} ({slug})")
         index.add_or_update(path)
 
         return {"name": fork_name_slug, "fork_name": data.fork_name}
@@ -99,6 +101,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             author=data.author,
         )
         path.write_text(md)
+        git_commit(recipes_dir, path, f"Update fork: {data.fork_name} ({slug})")
         index.add_or_update(path)
 
         return {"name": fork_name_slug, "fork_name": data.fork_name}
@@ -110,6 +113,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             raise HTTPException(status_code=404, detail="Fork not found")
 
         path.unlink()
+        git_commit(recipes_dir, path, f"Delete fork: {fork_name_slug} ({slug})")
         index.remove(f"{slug}.fork.{fork_name_slug}")
 
     @router.get("/{fork_name_slug}/export")
@@ -152,5 +156,18 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             content=full_markdown,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    @router.get("/{fork_name_slug}/history")
+    def fork_history(slug: str, fork_name_slug: str, content: bool = False):
+        """Return git history for a fork file."""
+        path = _fork_path(slug, fork_name_slug)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Fork not found")
+
+        entries = git_log(recipes_dir, path)
+        if content:
+            for entry in entries:
+                entry["content"] = git_show(recipes_dir, entry["hash"], path)
+        return {"history": entries}
 
     return router

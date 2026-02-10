@@ -156,3 +156,27 @@ export async function getRandomRecipe(): Promise<RecipeSummary> {
   if (!res.ok) throw new Error('No recipes found');
   return res.json();
 }
+
+export async function getMealPlan(week?: string): Promise<{ weeks: Record<string, { slug: string; fork?: string }[]> }> {
+  const params = week ? `?week=${encodeURIComponent(week)}` : '';
+  const res = await fetch(`${BASE}/meal-plan${params}`);
+  if (!res.ok) throw new Error('Failed to fetch meal plan');
+  return res.json();
+}
+
+export async function saveMealPlan(weeks: Record<string, { slug: string; fork?: string | null }[]>): Promise<{ weeks: Record<string, { slug: string; fork?: string }[]> }> {
+  const res = await fetch(`${BASE}/meal-plan`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weeks }),
+  });
+  if (!res.ok) throw new Error('Failed to save meal plan');
+  return res.json();
+}
+
+export async function getForkHistory(slug: string, forkName: string, includeContent = false): Promise<{ history: { hash: string; date: string; message: string; content?: string }[] }> {
+  const params = includeContent ? '?content=true' : '';
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/history${params}`);
+  if (!res.ok) throw new Error('Failed to fetch fork history');
+  return res.json();
+}

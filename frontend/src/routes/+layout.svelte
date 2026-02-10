@@ -68,6 +68,7 @@
       />
     </form>
     <a href="/add" class="add-btn" aria-label="Add recipe">+ Add</a>
+    <a href="/planner" class="planner-link">Planner</a>
     <a href="/grocery" class="grocery-link" aria-label="Grocery list">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
@@ -184,6 +185,18 @@
 
   .add-btn:hover {
     opacity: 0.9;
+    text-decoration: none;
+  }
+
+  .planner-link {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .planner-link:hover {
+    color: var(--color-accent);
     text-decoration: none;
   }
 

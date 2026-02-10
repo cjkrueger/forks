@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getRecipe, getFork, exportForkUrl, addCookHistory } from '$lib/api';
+  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory } from '$lib/api';
   import { renderMarkdown } from '$lib/markdown';
   import { mergeContent, getModifiedSections, parseSections } from '$lib/sections';
   import { parseIngredient, formatIngredient } from '$lib/ingredients';
@@ -24,6 +24,11 @@
 
   // Cook mode state
   let cookMode = false;
+
+  // Fork history state
+  let historyOpen = false;
+  let historyEntries: { hash: string; date: string; message: string; content?: string }[] = [];
+  let historyLoading = false;
 
   // Scaling state
   let currentServings: number | null = null;
@@ -200,6 +205,23 @@
 
   $: cookData = parseCookData(displayContent);
 
+  async function toggleHistory() {
+    if (historyOpen) {
+      historyOpen = false;
+      return;
+    }
+    if (!selectedFork || !recipe) return;
+    historyLoading = true;
+    historyOpen = true;
+    try {
+      const data = await getForkHistory(recipe.slug, selectedFork);
+      historyEntries = data.history;
+    } catch (e) {
+      historyEntries = [];
+    }
+    historyLoading = false;
+  }
+
   function getIngredientLines(content: string): string[] {
     const sections = parseSections(content);
     for (const section of sections) {
@@ -345,7 +367,33 @@
           <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
         {/if}
         <a href="/fork/{recipe.slug}" class="fork-btn">Fork This Recipe</a>
+        <button class="print-btn" on:click={() => window.print()}>Print</button>
+        {#if selectedFork}
+          <button class="history-btn" on:click={toggleHistory}>
+            {historyOpen ? 'Hide History' : 'History'}
+          </button>
+        {/if}
       </div>
+
+      {#if historyOpen}
+        <div class="history-panel">
+          <h3>Fork History</h3>
+          {#if historyLoading}
+            <p class="history-loading">Loading history...</p>
+          {:else if historyEntries.length === 0}
+            <p class="history-empty">No history available</p>
+          {:else}
+            <div class="history-timeline">
+              {#each historyEntries as entry}
+                <div class="history-entry">
+                  <span class="history-date">{new Date(entry.date).toLocaleDateString()}</span>
+                  <span class="history-message">{entry.message}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
 
       {#if selectedFork && forkDetail?.author}
         <p class="fork-author">by {forkDetail.author}</p>
@@ -567,6 +615,74 @@
     background: var(--color-accent);
     color: white;
     text-decoration: none;
+  }
+
+  .print-btn,
+  .history-btn {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .print-btn:hover,
+  .history-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .history-panel {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  .history-panel h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .history-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .history-entry {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .history-entry:last-child {
+    border-bottom: none;
+  }
+
+  .history-date {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .history-message {
+    font-size: 0.85rem;
+    color: var(--color-text);
+  }
+
+  .history-loading, .history-empty {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
   }
 
   .fork-author {

@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.generator import RecipeInput, slugify, generate_markdown
+from app.git import git_commit, git_rm
 from app.index import RecipeIndex
 from app.scraper import scrape_recipe, download_image
 from app.tagger import auto_tag
@@ -74,6 +75,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         recipe_data = data.model_copy(update={"image": image_field})
         markdown = generate_markdown(recipe_data)
         filepath.write_text(markdown)
+        git_commit(recipes_dir, filepath, f"Create recipe: {data.title}")
 
         # Update index
         index.add_or_update(filepath)
@@ -99,6 +101,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         recipe_data = data.model_copy(update={"image": image_field})
         markdown = generate_markdown(recipe_data)
         filepath.write_text(markdown)
+        git_commit(recipes_dir, filepath, f"Update recipe: {data.title}")
 
         index.add_or_update(filepath)
         return index.get(slug)
@@ -110,6 +113,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             raise HTTPException(status_code=404, detail="Recipe not found")
 
         filepath.unlink()
+        git_commit(recipes_dir, filepath, f"Delete recipe: {slug}")
 
         # Also delete image if it exists
         images_dir = recipes_dir / "images"

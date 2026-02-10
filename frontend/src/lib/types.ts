@@ -73,3 +73,12 @@ export interface RecipeInput {
   instructions: string[];
   notes: string[];
 }
+
+export interface MealSlot {
+  slug: string;
+  fork?: string | null;
+}
+
+export interface WeekPlan {
+  [date: string]: MealSlot[];
+}

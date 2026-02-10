@@ -37,3 +37,105 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+@media print {
+  /* Hide UI chrome */
+  .topbar,
+  .sidebar,
+  .overlay,
+  .back-link,
+  .version-selector,
+  .version-pill,
+  .set-default-link,
+  .recipe-actions,
+  .cook-btn,
+  .edit-btn,
+  .fork-btn,
+  .grocery-btn,
+  .print-btn,
+  .cook-history,
+  .discovery-chips,
+  .fork-author,
+  .history-panel,
+  .history-btn {
+    display: none !important;
+  }
+
+  /* Remove fork highlight borders */
+  .fork-modified {
+    border-left: none !important;
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  /* Layout resets */
+  .content {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .layout {
+    display: block !important;
+  }
+
+  /* Typography optimization */
+  .recipe {
+    max-width: 100% !important;
+  }
+
+  .recipe-body {
+    font-size: 11pt !important;
+    line-height: 1.6 !important;
+  }
+
+  /* Show source URL as text */
+  .source-link::after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #666;
+  }
+
+  /* No backgrounds/shadows */
+  * {
+    box-shadow: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Avoid page breaks inside lists */
+  li, .recipe-body ol li {
+    break-inside: avoid;
+  }
+
+  ul, ol {
+    break-inside: avoid-column;
+  }
+
+  h2 {
+    break-after: avoid;
+  }
+
+  /* Show tags as comma text */
+  .tags {
+    display: block !important;
+  }
+
+  .tags .tag {
+    display: inline !important;
+    background: none !important;
+    padding: 0 !important;
+    color: #666 !important;
+    font-size: 9pt !important;
+  }
+
+  .tags .tag::after {
+    content: ", ";
+  }
+
+  .tags .tag:last-child::after {
+    content: "";
+  }
+}
