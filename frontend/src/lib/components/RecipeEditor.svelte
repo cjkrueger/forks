@@ -13,6 +13,7 @@
   let prep_time = initialData.prep_time || '';
   let cook_time = initialData.cook_time || '';
   let source = initialData.source || '';
+  let author = initialData.author || '';
   let image = initialData.image || '';
   let ingredients = (initialData.ingredients || []).join('\n');
   let instructions = (initialData.instructions || []).join('\n');
@@ -87,6 +88,7 @@
       prep_time: prep_time.trim() || null,
       cook_time: cook_time.trim() || null,
       source: source.trim() || null,
+      author: author.trim() || null,
       image: image.trim() || null,
       ingredients: ingredients.split('\n').map(l => l.trim()).filter(Boolean),
       instructions: instructions.split('\n').map(l => l.trim()).filter(Boolean),
@@ -126,6 +128,11 @@
     <div class="field full">
       <label for="source">Source URL</label>
       <input id="source" type="text" bind:value={source} placeholder="https://..." />
+    </div>
+
+    <div class="field full">
+      <label for="author">Author</label>
+      <input id="author" type="text" bind:value={author} placeholder="Recipe author" />
     </div>
   </div>
 

@@ -21,6 +21,7 @@ export interface RecipeSummary {
   cook_time: string | null;
   date_added: string | null;
   source: string | null;
+  author: string | null;
   image: string | null;
   forks: ForkSummary[];
   cook_history: CookHistoryEntry[];
@@ -60,6 +61,7 @@ export interface ScrapeResponse {
   servings: string | null;
   image_url: string | null;
   source: string;
+  author: string | null;
   notes: string | null;
 }
 
@@ -70,6 +72,7 @@ export interface RecipeInput {
   prep_time: string | null;
   cook_time: string | null;
   source: string | null;
+  author?: string | null;
   image: string | null;
   ingredients: string[];
   instructions: string[];

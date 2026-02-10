@@ -11,6 +11,8 @@
   let saving = false;
   let saveError = '';
   let scrapedData: ScrapeResponse | null = null;
+  let imageFailedUrl: string | null = null;
+  let savedSlug: string | null = null;
 
   async function handleScrape() {
     if (!scrapeUrl.trim()) return;
@@ -28,9 +30,16 @@
   async function handleSave(data: RecipeInput) {
     saving = true;
     saveError = '';
+    imageFailedUrl = null;
     try {
       const recipe = await createRecipe(data);
-      goto(`/recipe/${recipe.slug}`);
+      if (recipe._image_failed) {
+        imageFailedUrl = recipe._image_failed;
+        savedSlug = recipe.slug;
+        saving = false;
+      } else {
+        goto(`/recipe/${recipe.slug}`);
+      }
     } catch (e: any) {
       saveError = e.message || 'Failed to save recipe';
       saving = false;
@@ -46,6 +55,7 @@
       prep_time: scrapedData.prep_time,
       cook_time: scrapedData.cook_time,
       source: scrapedData.source || scrapeUrl,
+      author: scrapedData.author,
       image: scrapedData.image_url,
       ingredients: scrapedData.ingredients || [],
       instructions: scrapedData.instructions || [],
@@ -98,7 +108,24 @@
       {/if}
     </div>
 
-    {#if scrapedData}
+    {#if imageFailedUrl}
+      <div class="image-failed-notice">
+        <p>
+          <strong>Recipe saved!</strong> But the photo couldn't be downloaded automatically — the website blocked it.
+        </p>
+        <p>
+          You can save it manually:
+        </p>
+        <ol>
+          <li><a href={imageFailedUrl} target="_blank" rel="noopener">Open the image</a> and save it to your device</li>
+          <li>Go to <a href="/edit/{savedSlug}">edit the recipe</a> and upload it there</li>
+        </ol>
+        <div class="image-failed-actions">
+          <a href="/recipe/{savedSlug}" class="btn btn-primary">View recipe</a>
+          <a href="/edit/{savedSlug}" class="btn btn-secondary">Edit &amp; upload image</a>
+        </div>
+      </div>
+    {:else if scrapedData}
       {#if saveError}
         <p class="error">{saveError}</p>
       {/if}
@@ -211,6 +238,62 @@
     font-size: 0.9rem;
     margin-top: 0.75rem;
     margin-bottom: 0.75rem;
+  }
+
+  .image-failed-notice {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .image-failed-notice p {
+    margin: 0 0 0.75rem;
+  }
+
+  .image-failed-notice ol {
+    margin: 0 0 1.25rem;
+    padding-left: 1.5rem;
+  }
+
+  .image-failed-notice li {
+    margin-bottom: 0.35rem;
+  }
+
+  .image-failed-notice a:not(.btn) {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+
+  .image-failed-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 0.5rem 1.25rem;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+  }
+
+  .btn-primary {
+    background: var(--color-accent);
+    color: white;
+  }
+
+  .btn-secondary {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
   }
 
   @media (max-width: 768px) {

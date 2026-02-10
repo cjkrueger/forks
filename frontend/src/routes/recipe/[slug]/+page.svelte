@@ -393,6 +393,10 @@
         </a>
       {/if}
 
+      {#if recipe.author}
+        <p class="recipe-author">by {recipe.author}</p>
+      {/if}
+
       <div class="recipe-actions">
         <button class="cook-btn" on:click={enterCookMode}>Start Cooking</button>
         {#if onGroceryList}
@@ -814,6 +818,13 @@
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
     margin-left: 0.25rem;
+  }
+
+  .recipe-author {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin-top: 0.25rem;
   }
 
   .fork-author {
