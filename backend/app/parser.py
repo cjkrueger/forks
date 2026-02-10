@@ -3,7 +3,7 @@ from pathlib import Path
 
 import frontmatter
 
-from app.models import Recipe, RecipeSummary
+from app.models import Recipe, RecipeSummary, ForkSummary
 
 logger = logging.getLogger(__name__)
 
@@ -58,4 +58,25 @@ def parse_recipe(path: Path) -> Recipe:
         source=meta.get("source"),
         image=meta.get("image"),
         content=content,
+    )
+
+
+def parse_fork_frontmatter(path: Path) -> ForkSummary:
+    """Parse fork file frontmatter into a ForkSummary."""
+    stem = path.stem
+    parts = stem.split(".fork.")
+    name = parts[-1] if len(parts) > 1 else stem
+
+    try:
+        post = frontmatter.load(path)
+        meta = post.metadata
+    except Exception:
+        logger.warning(f"Failed to parse fork frontmatter: {path}")
+        return ForkSummary(name=name, fork_name=name)
+
+    return ForkSummary(
+        name=name,
+        fork_name=meta.get("fork_name", name),
+        author=meta.get("author"),
+        date_added=str(meta.get("date_added")) if meta.get("date_added") else None,
     )
