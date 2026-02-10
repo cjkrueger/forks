@@ -5,9 +5,28 @@
   import { listRecipes, searchRecipes, listRecipesWithSort, getRandomRecipe } from '$lib/api';
   import type { RecipeSummary } from '$lib/types';
   import RecipeCard from '$lib/components/RecipeCard.svelte';
+  import RecipeTable from '$lib/components/RecipeTable.svelte';
 
   let recipes: RecipeSummary[] = [];
   let loading = true;
+
+  let viewMode: string = (typeof localStorage !== 'undefined' && localStorage.getItem('viewMode')) || 'grid';
+  let visibleColumns: string[] = (() => {
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem('tableColumns');
+      if (stored) {
+        try { return JSON.parse(stored); } catch { /* ignore */ }
+      }
+    }
+    return ['title', 'tags', 'cook_time', 'likes', 'last_cooked'];
+  })();
+
+  $: if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('viewMode', viewMode);
+  }
+  $: if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('tableColumns', JSON.stringify(visibleColumns));
+  }
 
   $: query = $page.url.searchParams.get('q') || '';
   $: tags = $page.url.searchParams.get('tags') || '';
@@ -81,16 +100,42 @@
   {#if query}
     <p class="result-info">Search results for "{query}"</p>
   {:else}
-    <div class="discovery-chips">
-      {#each discoveryChips as chip}
+    <div class="toolbar">
+      <div class="discovery-chips">
+        {#each discoveryChips as chip}
+          <button
+            class="chip"
+            class:active={sort === chip.sort}
+            on:click={() => handleChip(chip)}
+          >
+            {chip.label}
+          </button>
+        {/each}
+      </div>
+      <div class="view-toggle">
         <button
-          class="chip"
-          class:active={sort === chip.sort}
-          on:click={() => handleChip(chip)}
+          class="toggle-btn"
+          class:active={viewMode === 'grid'}
+          on:click={() => viewMode = 'grid'}
+          title="Grid view"
+          aria-label="Grid view"
         >
-          {chip.label}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+          </svg>
         </button>
-      {/each}
+        <button
+          class="toggle-btn"
+          class:active={viewMode === 'table'}
+          on:click={() => viewMode = 'table'}
+          title="Table view"
+          aria-label="Table view"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      </div>
     </div>
   {/if}
 
@@ -110,6 +155,8 @@
         No recipes found.
       {/if}
     </p>
+  {:else if viewMode === 'table'}
+    <RecipeTable recipes={recipes} visibleColumns={visibleColumns} />
   {:else}
     <div class="grid">
       {#each recipes as recipe (recipe.slug)}
@@ -130,11 +177,52 @@
     margin-bottom: 1.5rem;
   }
 
+  .toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
   .discovery-chips {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-    margin-bottom: 1.5rem;
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.15rem;
+    background: var(--color-surface);
+  }
+
+  .toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: calc(var(--radius) - 2px);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .toggle-btn:hover:not(.active) {
+    color: var(--color-accent);
+    background: var(--color-surface-hover);
+  }
+
+  .toggle-btn.active {
+    background: var(--color-accent);
+    color: white;
   }
 
   .chip {
