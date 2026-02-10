@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.git import git_init_if_needed
 from app.index import RecipeIndex
+from app.remote_config import get_config_path
 from app.routes.cook import create_cook_router
 from app.routes.editor import create_editor_router
 from app.routes.forks import create_fork_router
@@ -36,7 +37,8 @@ def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
     app.include_router(create_editor_router(index, recipes_path))
     app.include_router(create_fork_router(index, recipes_path))
     app.include_router(create_cook_router(index, recipes_path))
-    app.include_router(create_planner_router(recipes_path))
+    config_path = get_config_path(recipes_path)
+    app.include_router(create_planner_router(recipes_path, config_path))
 
     app.include_router(create_stream_router(index, recipes_path))
 

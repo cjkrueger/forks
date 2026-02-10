@@ -119,6 +119,7 @@ export interface RemoteConfig {
 export interface SyncConfig {
   enabled: boolean;
   interval_seconds: number;
+  sync_meal_plans: boolean;
 }
 
 export interface AppSettings {

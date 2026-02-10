@@ -34,9 +34,12 @@ def client(tmp_recipes):
 
 class TestGetMealPlan:
     def test_empty_plan(self, client):
-        resp = client.get("/api/meal-plan")
+        resp = client.get("/api/meal-plan?week=2026-W07")
         assert resp.status_code == 200
-        assert resp.json() == {"weeks": {}}
+        data = resp.json()["weeks"]
+        # Returns 7 days for the requested week, all empty
+        assert len(data) == 7
+        assert all(v == [] for v in data.values())
 
     def test_get_with_week_filter(self, client, tmp_recipes):
         client.put("/api/meal-plan", json={
@@ -87,7 +90,7 @@ class TestSaveMealPlan:
         client.put("/api/meal-plan", json={
             "weeks": {"2026-02-10": [{"slug": "chicken-soup"}]}
         })
-        resp = client.get("/api/meal-plan")
+        resp = client.get("/api/meal-plan?week=2026-W07")
         data = resp.json()["weeks"]
         assert "2026-02-09" in data
         assert "2026-02-10" in data
@@ -99,9 +102,10 @@ class TestSaveMealPlan:
         client.put("/api/meal-plan", json={
             "weeks": {"2026-02-09": []}
         })
-        resp = client.get("/api/meal-plan")
+        resp = client.get("/api/meal-plan?week=2026-W07")
         data = resp.json()["weeks"]
-        assert "2026-02-09" not in data
+        # Day is present but empty (GET fills all 7 days)
+        assert data["2026-02-09"] == []
 
     def test_multiple_meals_per_day(self, client):
         resp = client.put("/api/meal-plan", json={
@@ -115,11 +119,22 @@ class TestSaveMealPlan:
         assert resp.status_code == 200
         assert len(resp.json()["weeks"]["2026-02-09"]) == 2
 
-    def test_writes_meal_plan_file(self, client, tmp_recipes):
+    def test_writes_per_week_file(self, client, tmp_recipes):
         client.put("/api/meal-plan", json={
             "weeks": {"2026-02-09": [{"slug": "birria-tacos"}]}
         })
-        plan_file = tmp_recipes / "meal-plan.md"
+        plan_file = tmp_recipes / "meal-plans" / "2026-W07.md"
         assert plan_file.exists()
         content = plan_file.read_text()
         assert "birria-tacos" in content
+
+    def test_cross_week_save(self, client, tmp_recipes):
+        """Saving dates across two weeks creates two separate files."""
+        client.put("/api/meal-plan", json={
+            "weeks": {
+                "2026-02-09": [{"slug": "birria-tacos"}],   # W07
+                "2026-02-16": [{"slug": "chicken-soup"}],   # W08
+            }
+        })
+        assert (tmp_recipes / "meal-plans" / "2026-W07.md").exists()
+        assert (tmp_recipes / "meal-plans" / "2026-W08.md").exists()

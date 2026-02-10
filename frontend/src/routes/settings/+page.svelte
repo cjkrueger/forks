@@ -6,7 +6,7 @@
 
   let settings: AppSettings = {
     remote: { provider: null, url: null, token: null },
-    sync: { enabled: false, interval_seconds: 300 },
+    sync: { enabled: false, interval_seconds: 300, sync_meal_plans: true },
   };
 
   let loading = true;
@@ -170,6 +170,14 @@
             step="10"
             bind:value={settings.sync.interval_seconds}
           />
+        </div>
+
+        <div class="field checkbox-field">
+          <label>
+            <input type="checkbox" bind:checked={settings.sync.sync_meal_plans} />
+            Sync meal plans
+          </label>
+          <p class="field-help">Include weekly meal plans when syncing to remote repository.</p>
         </div>
 
         <div class="actions">

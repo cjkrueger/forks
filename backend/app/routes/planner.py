@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -8,6 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.git import git_commit
+from app.remote_config import load_config
 
 logger = logging.getLogger(__name__)
 
@@ -21,31 +23,53 @@ class SavePlanRequest(BaseModel):
     weeks: Dict[str, List[MealSlot]]
 
 
-def create_planner_router(recipes_dir: Path) -> APIRouter:
+def _week_key_for_date(date_str: str) -> str:
+    """Return ISO week key like '2026-W07' for a date string 'YYYY-MM-DD'."""
+    d = datetime.date.fromisoformat(date_str)
+    year, week, _ = d.isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def create_planner_router(recipes_dir: Path, config_path: Path) -> APIRouter:
     router = APIRouter(prefix="/api/meal-plan")
 
-    def _plan_path() -> Path:
-        return recipes_dir / "meal-plan.md"
+    def _plan_dir() -> Path:
+        d = recipes_dir / "meal-plans"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
 
-    def _load_plan() -> dict:
-        path = _plan_path()
+    def _week_path(week_key: str) -> Path:
+        return _plan_dir() / f"{week_key}.md"
+
+    def _load_week(week_key: str) -> dict:
+        path = _week_path(week_key)
         if not path.exists():
             return {}
         try:
             post = frontmatter.load(path)
-            return post.metadata.get("weeks", {})
+            return post.metadata.get("days", {})
         except Exception:
-            logger.exception("Failed to load meal plan")
+            logger.exception("Failed to load meal plan week %s", week_key)
             return {}
 
-    def _save_plan(weeks: dict) -> None:
-        path = _plan_path()
-        post = frontmatter.Post(content="", **{"weeks": weeks})
+    def _save_week(week_key: str, days: dict) -> None:
+        path = _week_path(week_key)
+
+        # Remove empty days
+        days = {d: meals for d, meals in days.items() if meals}
+
+        if not days:
+            # Delete the file if no meals remain
+            if path.exists():
+                path.unlink()
+            return
+
+        post = frontmatter.Post(content="", **{"week": week_key, "days": days})
 
         # Generate human-readable body
-        lines = ["# Meal Plan\n"]
-        for day in sorted(weeks.keys()):
-            meals = weeks[day]
+        lines = [f"# Meal Plan — {week_key}\n"]
+        for day in sorted(days.keys()):
+            meals = days[day]
             if meals:
                 lines.append(f"## {day}\n")
                 for meal in meals:
@@ -59,50 +83,69 @@ def create_planner_router(recipes_dir: Path) -> APIRouter:
 
         post.content = "\n".join(lines)
         path.write_text(frontmatter.dumps(post))
-        git_commit(recipes_dir, path, "Update meal plan")
+
+        # Conditionally git-commit based on sync_meal_plans setting
+        try:
+            _, sync_cfg = load_config(config_path)
+            if sync_cfg.sync_meal_plans:
+                git_commit(recipes_dir, path, f"Update meal plan {week_key}")
+        except Exception:
+            logger.exception("Failed to check sync config for meal plan commit")
 
     @router.get("")
     def get_meal_plan(week: Optional[str] = None):
-        """Get meal plan. Optional week param like '2026-W07' filters to that week's Mon-Sun."""
-        weeks = _load_plan()
+        """Get meal plan for a week. Param like '2026-W07', defaults to current week."""
+        if not week:
+            today = datetime.date.today()
+            year, wk, _ = today.isocalendar()
+            week = f"{year}-W{wk:02d}"
 
-        if week:
-            try:
-                parts = week.split("-W")
-                year = int(parts[0])
-                week_num = int(parts[1])
-                monday = datetime.date.fromisocalendar(year, week_num, 1)
-                date_range = [(monday + datetime.timedelta(days=i)).isoformat() for i in range(7)]
-                filtered = {}
-                for d in date_range:
-                    if d in weeks:
-                        filtered[d] = weeks[d]
-                    else:
-                        filtered[d] = []
-                return {"weeks": filtered}
-            except (ValueError, IndexError):
-                pass
+        try:
+            parts = week.split("-W")
+            year = int(parts[0])
+            week_num = int(parts[1])
+            monday = datetime.date.fromisocalendar(year, week_num, 1)
+        except (ValueError, IndexError):
+            return {"weeks": {}}
 
-        return {"weeks": weeks}
+        date_range = [(monday + datetime.timedelta(days=i)).isoformat() for i in range(7)]
+        stored = _load_week(week)
+
+        result = {}
+        for d in date_range:
+            result[d] = stored.get(d, [])
+
+        return {"weeks": result}
 
     @router.put("")
     def save_meal_plan(data: SavePlanRequest):
-        """Save the entire meal plan. Merges with existing data."""
-        existing = _load_plan()
-
+        """Save meal plan. Groups dates by ISO week and saves each week file."""
+        # Group incoming dates by week
+        by_week: Dict[str, Dict[str, list]] = {}
         for day, meals in data.weeks.items():
+            wk = _week_key_for_date(day)
+            if wk not in by_week:
+                by_week[wk] = {}
             serialized = []
             for meal in meals:
                 entry = {"slug": meal.slug}
                 if meal.fork:
                     entry["fork"] = meal.fork
                 serialized.append(entry)
-            if serialized:
-                existing[day] = serialized
-            elif day in existing:
-                del existing[day]
+            by_week[wk][day] = serialized
 
-        _save_plan(existing)
-        return {"weeks": existing}
+        # Load, merge, and save each affected week
+        all_days = {}
+        for wk, new_days in by_week.items():
+            existing = _load_week(wk)
+            for day, meals in new_days.items():
+                if meals:
+                    existing[day] = meals
+                elif day in existing:
+                    del existing[day]
+            _save_week(wk, existing)
+            all_days.update(existing)
+
+        return {"weeks": all_days}
 
     return router

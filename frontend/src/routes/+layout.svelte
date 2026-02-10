@@ -258,6 +258,10 @@
   }
 
   .planner-icon {
+    display: block;
+  }
+
+  .planner-label {
     display: none;
   }
 
@@ -431,14 +435,6 @@
     .topbar {
       padding: 0.75rem 1.25rem;
       gap: 1rem;
-    }
-
-    .planner-icon {
-      display: block;
-    }
-
-    .planner-label {
-      display: none;
     }
 
     .add-label {

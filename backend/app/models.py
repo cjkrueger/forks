@@ -90,3 +90,4 @@ class RemoteConfig(BaseModel):
 class SyncConfig(BaseModel):
     enabled: bool = False
     interval_seconds: int = 90
+    sync_meal_plans: bool = True

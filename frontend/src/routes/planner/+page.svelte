@@ -35,10 +35,16 @@
       dates.push(d.toISOString().split('T')[0]);
     }
 
-    // ISO week number
-    const jan4 = new Date(monday.getFullYear(), 0, 4);
-    const weekNum = Math.ceil(((monday.getTime() - jan4.getTime()) / 86400000 + jan4.getDay() + 1) / 7);
-    const isoWeek = `${monday.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+    // ISO week: Thursday of the week determines the ISO year and week number
+    const thu = new Date(monday);
+    thu.setDate(monday.getDate() + 3);
+    const isoYear = thu.getFullYear();
+    const jan4 = new Date(isoYear, 0, 4);
+    const dayOfWeek = jan4.getDay() || 7; // Mon=1 .. Sun=7
+    const week1Monday = new Date(jan4);
+    week1Monday.setDate(jan4.getDate() - dayOfWeek + 1);
+    const weekNum = Math.round((monday.getTime() - week1Monday.getTime()) / (7 * 86400000)) + 1;
+    const isoWeek = `${isoYear}-W${String(weekNum).padStart(2, '0')}`;
 
     return { isoWeek, dates };
   }
@@ -145,6 +151,11 @@
     loadWeek();
   }
 
+  function goToday() {
+    weekOffset = 0;
+    loadWeek();
+  }
+
   onMount(async () => {
     allRecipes = await listRecipes();
     initialized = true;
@@ -168,6 +179,9 @@
     <h1>Meal Planner</h1>
     <div class="planner-actions">
       <div class="week-nav">
+        {#if weekOffset !== 0}
+          <button class="today-btn" on:click={goToday}>Today</button>
+        {/if}
         <button on:click={prevWeek}>&larr;</button>
         <span class="week-label">{weekLabel}</span>
         <button on:click={nextWeek}>&rarr;</button>
@@ -279,6 +293,12 @@
   .week-nav button:hover {
     border-color: var(--color-accent);
     color: var(--color-accent);
+  }
+
+  .today-btn {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
   }
 
   .week-label {
