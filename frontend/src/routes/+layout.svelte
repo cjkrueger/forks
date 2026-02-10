@@ -69,8 +69,18 @@
       />
     </form>
     <nav class="topbar-nav">
-      <a href="/add" class="add-btn" aria-label="Add recipe">+ Add</a>
-      <a href="/planner" class="nav-link">Planner</a>
+      <a href="/add" class="add-btn" aria-label="Add recipe">
+        <svg class="add-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        <span class="add-label">Add</span>
+      </a>
+      <a href="/planner" class="nav-link planner-link" aria-label="Meal planner">
+        <svg class="planner-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span class="planner-label">Planner</span>
+      </a>
       <a href="/grocery" class="nav-link grocery-link" aria-label="Grocery list">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
@@ -131,8 +141,8 @@
     z-index: 100;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1.5rem;
+    gap: 1.25rem;
+    padding: 0.75rem 2rem;
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
     box-shadow: var(--shadow-sm);
@@ -142,6 +152,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-shrink: 0;
   }
 
   .menu-btn {
@@ -168,7 +179,7 @@
 
   .search-form {
     flex: 1;
-    max-width: 400px;
+    max-width: 560px;
   }
 
   .search-input {
@@ -192,10 +203,14 @@
   .topbar-nav {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    flex-shrink: 0;
   }
 
   .add-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
     padding: 0.5rem 1rem;
     background: var(--color-accent);
     color: white;
@@ -212,13 +227,28 @@
     text-decoration: none;
   }
 
+  .add-icon {
+    flex-shrink: 0;
+  }
+
+  .planner-link {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .planner-icon {
+    display: none;
+  }
+
   .nav-link {
     font-size: 0.85rem;
     color: var(--color-text-muted);
     text-decoration: none;
-    padding: 0.4rem 0.6rem;
+    padding: 0.4rem 0.75rem;
     border-radius: var(--radius);
     transition: color 0.15s, background 0.15s;
+    white-space: nowrap;
   }
 
   .nav-link:hover {
@@ -346,9 +376,48 @@
     display: none;
   }
 
+  /* Tablet: collapse planner text to icon, shrink add button */
+  @media (max-width: 900px) {
+    .topbar {
+      padding: 0.75rem 1.25rem;
+      gap: 1rem;
+    }
+
+    .planner-icon {
+      display: block;
+    }
+
+    .planner-label {
+      display: none;
+    }
+
+    .add-label {
+      display: none;
+    }
+
+    .add-btn {
+      padding: 0.5rem;
+      border-radius: 50%;
+    }
+  }
+
+  /* Mobile: sidebar as overlay, compact topbar */
   @media (max-width: 768px) {
     .menu-btn {
       display: block;
+    }
+
+    .topbar {
+      padding: 0.6rem 1rem;
+      gap: 0.75rem;
+    }
+
+    .search-form {
+      max-width: none;
+    }
+
+    .topbar-nav {
+      gap: 0.5rem;
     }
 
     .sidebar {
@@ -378,14 +447,6 @@
 
     .content {
       padding: 1rem;
-    }
-
-    .topbar-nav {
-      gap: 0.25rem;
-    }
-
-    .nav-link:not(.grocery-link) {
-      display: none;
     }
   }
 </style>
