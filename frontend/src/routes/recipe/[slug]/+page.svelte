@@ -16,7 +16,7 @@
   let forkLoading = false;
   let modifiedSections: Set<string> = new Set();
 
-  $: slug = $page.params.slug;
+  $: slug = $page.params.slug as string;
 
   onMount(async () => {
     try {

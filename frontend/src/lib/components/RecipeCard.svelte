@@ -34,6 +34,13 @@
         {#each recipe.tags.slice(0, 4) as tag}
           <span class="tag">{tag}</span>
         {/each}
+        {#if recipe.forks && recipe.forks.length > 0}
+          <span class="tag fork-count">{recipe.forks.length} {recipe.forks.length === 1 ? 'fork' : 'forks'}</span>
+        {/if}
+      </div>
+    {:else if recipe.forks && recipe.forks.length > 0}
+      <div class="card-tags">
+        <span class="tag fork-count">{recipe.forks.length} {recipe.forks.length === 1 ? 'fork' : 'forks'}</span>
       </div>
     {/if}
   </div>
@@ -114,5 +121,10 @@
     border-radius: 4px;
     background: var(--color-tag);
     color: var(--color-text-muted);
+  }
+
+  .fork-count {
+    background: var(--color-accent-light, var(--color-tag));
+    color: var(--color-accent);
   }
 </style>

@@ -2,22 +2,34 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { getRecipe, updateRecipe, deleteRecipe } from '$lib/api';
+  import { getRecipe, updateRecipe, deleteRecipe, getFork, updateFork, deleteFork } from '$lib/api';
+  import { mergeContent } from '$lib/sections';
   import RecipeEditor from '$lib/components/RecipeEditor.svelte';
-  import type { Recipe, RecipeInput } from '$lib/types';
+  import type { Recipe, RecipeInput, ForkInput, ForkDetail } from '$lib/types';
 
   let recipe: Recipe | null = null;
+  let forkDetail: ForkDetail | null = null;
   let loading = true;
   let saving = false;
   let saveError = '';
   let showDeleteConfirm = false;
   let deleting = false;
 
-  $: slug = $page.params.slug;
+  let forkName = '';
+  let author = '';
+
+  $: slug = $page.params.slug as string;
+  $: forkParam = $page.url.searchParams.get('fork');
+  $: editingFork = !!forkParam;
 
   onMount(async () => {
     try {
       recipe = await getRecipe(slug);
+      if (forkParam && recipe) {
+        forkDetail = await getFork(slug, forkParam);
+        forkName = forkDetail.fork_name;
+        author = forkDetail.author || '';
+      }
     } catch (e) {
       // handled by template
     }
@@ -54,7 +66,13 @@
 
   function getInitialData(): Partial<RecipeInput> {
     if (!recipe) return {};
-    const { ingredients, instructions, notes } = parseContent(recipe.content);
+
+    let content = recipe.content;
+    if (forkDetail) {
+      content = mergeContent(recipe.content, forkDetail.content);
+    }
+
+    const { ingredients, instructions, notes } = parseContent(content);
     return {
       title: recipe.title,
       tags: recipe.tags,
@@ -78,10 +96,20 @@
     saving = true;
     saveError = '';
     try {
-      await updateRecipe(slug, data);
-      goto(`/recipe/${slug}`);
+      if (editingFork && forkParam) {
+        const forkData: ForkInput = {
+          fork_name: forkName.trim(),
+          author: author.trim() || null,
+          ...data,
+        };
+        await updateFork(slug, forkParam, forkData);
+        goto(`/recipe/${slug}?fork=${forkParam}`);
+      } else {
+        await updateRecipe(slug, data);
+        goto(`/recipe/${slug}`);
+      }
     } catch (e: any) {
-      saveError = e.message || 'Failed to update recipe';
+      saveError = e.message || 'Failed to save';
       saving = false;
     }
   }
@@ -89,17 +117,29 @@
   async function handleDelete() {
     deleting = true;
     try {
-      await deleteRecipe(slug);
-      goto('/');
+      if (editingFork && forkParam) {
+        await deleteFork(slug, forkParam);
+        goto(`/recipe/${slug}`);
+      } else {
+        await deleteRecipe(slug);
+        goto('/');
+      }
     } catch (e) {
       deleting = false;
       showDeleteConfirm = false;
     }
   }
+
+  $: backHref = editingFork ? `/recipe/${slug}?fork=${forkParam}` : `/recipe/${slug}`;
+  $: pageTitle = editingFork ? `Edit Fork: ${forkName || forkParam}` : 'Edit Recipe';
+  $: deleteLabel = editingFork ? 'Delete Fork' : 'Delete Recipe';
+  $: deleteMessage = editingFork
+    ? `Are you sure you want to delete the fork "${forkName || forkParam}"? This cannot be undone.`
+    : `Are you sure you want to delete "${recipe?.title}"? This cannot be undone.`;
 </script>
 
 <svelte:head>
-  <title>Edit {recipe?.title || 'Recipe'} - Forks</title>
+  <title>{pageTitle} - Forks</title>
 </svelte:head>
 
 {#if loading}
@@ -111,17 +151,17 @@
   </div>
 {:else}
   <div class="edit-page">
-    <a href="/recipe/{slug}" class="back-link">&larr; Back to recipe</a>
+    <a href={backHref} class="back-link">&larr; Back to recipe</a>
     <div class="edit-header">
-      <h1>Edit Recipe</h1>
+      <h1>{pageTitle}</h1>
       <button class="delete-btn" on:click={() => showDeleteConfirm = true}>
-        Delete Recipe
+        {deleteLabel}
       </button>
     </div>
 
     {#if showDeleteConfirm}
       <div class="delete-confirm">
-        <p>Are you sure you want to delete "{recipe.title}"? This cannot be undone.</p>
+        <p>{deleteMessage}</p>
         <div class="delete-actions">
           <button class="confirm-delete" on:click={handleDelete} disabled={deleting}>
             {deleting ? 'Deleting...' : 'Yes, delete'}
@@ -129,6 +169,19 @@
           <button class="cancel-delete" on:click={() => showDeleteConfirm = false}>
             Cancel
           </button>
+        </div>
+      </div>
+    {/if}
+
+    {#if editingFork}
+      <div class="fork-fields">
+        <div class="field">
+          <label for="fork-name">Version Name</label>
+          <input id="fork-name" type="text" bind:value={forkName} placeholder="Version name" />
+        </div>
+        <div class="field">
+          <label for="author">Author <span class="hint">optional</span></label>
+          <input id="author" type="text" bind:value={author} placeholder="Your name" />
         </div>
       </div>
     {/if}
@@ -172,6 +225,48 @@
   .edit-header h1 {
     font-size: 1.75rem;
     font-weight: 700;
+  }
+
+  .fork-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .field label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .hint {
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+
+  .field input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    background: var(--color-surface);
+    color: var(--color-text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus {
+    border-color: var(--color-accent);
   }
 
   .delete-btn {
