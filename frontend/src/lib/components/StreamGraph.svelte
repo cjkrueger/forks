@@ -22,7 +22,7 @@
 
   function nodeColor(type: StreamEvent['type']): string {
     switch (type) {
-      case 'created': return 'var(--color-accent)';
+      case 'created': return 'var(--color-success)';
       case 'edited': return 'var(--color-border)';
       case 'forked': return 'var(--color-secondary)';
       case 'merged': return 'var(--color-success)';
@@ -113,6 +113,9 @@
       if (showBelow) return 'below';
       return 'none';
     }
+
+    // Column 0 (main recipe line) is always a continuous pass-through
+    if (col === 0) return 'full';
 
     // Active pass-through: continuous vertical line
     if (isActive) return 'full';

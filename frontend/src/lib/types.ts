@@ -1,3 +1,9 @@
+export interface ChangelogEntry {
+  date: string;
+  action: string;
+  summary: string;
+}
+
 export interface CookHistoryEntry {
   date: string;
   fork: string | null;
@@ -30,6 +36,7 @@ export interface RecipeSummary {
   cook_history: CookHistoryEntry[];
   likes: number;
   version: number;
+  changelog: ChangelogEntry[];
 }
 
 export interface Recipe extends RecipeSummary {

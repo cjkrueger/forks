@@ -195,6 +195,12 @@ export async function getForkHistory(slug: string, forkName: string, includeCont
   return res.json();
 }
 
+export async function getRecipeHistory(slug: string): Promise<{ history: { hash: string; date: string; message: string; content: string }[] }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/history`);
+  if (!res.ok) throw new Error('Failed to fetch recipe history');
+  return res.json();
+}
+
 export async function getSyncStatus(): Promise<SyncStatus> {
   const res = await fetch(`${BASE}/sync/status`);
   if (!res.ok) throw new Error('Failed to get sync status');
@@ -239,8 +245,12 @@ export async function likeRecipe(slug: string): Promise<{ likes: number }> {
   return res.json();
 }
 
-export async function mergeFork(slug: string, forkName: string): Promise<{ merged: boolean }> {
-  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/merge`, { method: 'POST' });
+export async function mergeFork(slug: string, forkName: string, note: string): Promise<{ merged: boolean }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/merge`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note }),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Merge failed' }));
     throw new Error(err.detail || 'Merge failed');

@@ -24,6 +24,10 @@ from app.sections import (
 logger = logging.getLogger(__name__)
 
 
+class MergeForkRequest(BaseModel):
+    note: str
+
+
 class FailForkRequest(BaseModel):
     reason: str
 
@@ -234,7 +238,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         return {"history": entries}
 
     @router.post("/{fork_name_slug}/merge")
-    def merge_fork(slug: str, fork_name_slug: str):
+    def merge_fork(slug: str, fork_name_slug: str, data: MergeForkRequest):
         """Merge a fork's changes back into the base recipe."""
         base_path = _load_base(slug)
         fork_path = _fork_path(slug, fork_name_slug)
@@ -251,7 +255,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
 
         # Append changelog to base recipe
-        append_changelog_entry(base_post, "merged", f"Merged fork '{fork_name}'")
+        append_changelog_entry(base_post, "merged", f"Merged fork '{fork_name}': {data.note}")
 
         # Write updated base file
         base_path.write_text(frontmatter.dumps(base_post))

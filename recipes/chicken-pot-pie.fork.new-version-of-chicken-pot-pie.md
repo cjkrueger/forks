@@ -3,10 +3,18 @@ changelog:
 - action: created
   date: '2026-02-10'
   summary: Forked from original
-date_added: 2026-02-10
-fork_name: New version of chicken pot pie
-forked_at_commit: bc4063d3b33271133d3c2656d168055b3c463e71
+- action: edited
+  date: '2026-02-11T06:28:14.280089+00:00'
+  summary: Edited metadata
+- action: failed
+  date: '2026-02-11T06:28:23.927912+00:00'
+  summary: 'Marked as failed: shrimp not a good fit for this recipe'
+date_added: 2026-02-11
+failed_at: '2026-02-11'
+failed_reason: shrimp not a good fit for this recipe
+fork_name: Shrimp Pot Pie
 forked_from: chicken-pot-pie
+version: 1
 ---
 
 ## Ingredients

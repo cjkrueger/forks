@@ -1,11 +1,23 @@
 ---
-title: 7-Layer Casserole
-source: https://www.foodnetwork.com/recipes/ree-drummond/7-layer-casserole-21101977
-tags: [beef, casserole, mediterranean, mexican]
-servings: 6 servings
+changelog:
+- action: edited
+  date: '2026-02-11T14:43:46.107823+00:00'
+  summary: Edited Ingredients
+- action: merged
+  date: '2026-02-11T14:44:45.262094+00:00'
+  summary: 'Merged fork ''100 cups of cilantro'': Yeah, I really love cilantro'
 cook_time: 20min
-date_added: 2026-02-10
+date_added: 2026-02-11
 image: images/1740418090232.webp
+servings: 6 servings
+source: https://www.foodnetwork.com/recipes/ree-drummond/7-layer-casserole-21101977
+tags:
+- beef
+- casserole
+- mediterranean
+- mexican
+title: 7-Layer Casserole
+version: 1
 ---
 
 # 7-Layer Casserole
@@ -16,15 +28,15 @@ image: images/1740418090232.webp
 - 1 pound ground beef
 - 2 heaping tablespoons taco seasoning
 - Kosher salt and freshly ground black pepper
-- Two 8.5-ounce bags microwave white rice
-- One 15-ounce can ranch style beans
+- 2 (8.5 ounce) bags microwave white rice
+- 1 (15 ounce) can ranch style beans
 - 1 cup frozen fire-roasted corn
-- One 15-ounce can tomatoes and green chiles
+- 1 (15 ounce) can tomatoes and green chiles
 - 1 1/2 cups grated Monterey Jack cheese
 - 1/2 cup diced Roma tomato
 - 1 small avocado, diced
 - 1/2 cup crumbled Cotija
-- 1/4 cup fresh cilantro leaves
+- 100  cups fresh cilantro leaves
 
 ## Instructions
 

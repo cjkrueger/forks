@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory, mergeFork, unmergeFork, failFork, unfailFork, getRecipeStream } from '$lib/api';
+  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory, getRecipeHistory, mergeFork, unmergeFork, failFork, unfailFork, getRecipeStream } from '$lib/api';
   import { renderMarkdown } from '$lib/markdown';
   import { mergeContent, getModifiedSections, parseSections } from '$lib/sections';
   import { parseIngredient, formatIngredient, formatQuantity } from '$lib/ingredients';
@@ -28,14 +28,28 @@
   // Cook mode state
   let cookMode = false;
 
-  // Fork history state
+  // History state
   let historyOpen = false;
   let historyEntries: { hash: string; date: string; message: string; content?: string }[] = [];
   let historyLoading = false;
 
+  interface HistoryChange {
+    date: string;
+    message: string;
+    diffs: SectionDiff[];
+  }
+  let historyChanges: HistoryChange[] = [];
+
   // Merge state
   let merging = false;
   let mergeMessage = '';
+
+  // Note form state (inline form for merge/fail actions)
+  let noteFormAction: 'merge' | 'fail' | null = null;
+  let noteText = '';
+
+  // Export state
+  let stripHistory = true;
 
   // Stream state
   let streamEvents: StreamEvent[] = [];
@@ -89,6 +103,11 @@
     forkDetail = null;
     modifiedSections = new Set();
     currentServings = originalServings;
+    noteFormAction = null;
+    noteText = '';
+    historyOpen = false;
+    historyEntries = [];
+    historyChanges = [];
     if (forkName && recipe) {
       forkLoading = true;
       try {
@@ -322,30 +341,71 @@
       historyOpen = false;
       return;
     }
-    if (!selectedFork || !recipe) return;
+    if (!recipe) return;
     historyLoading = true;
     historyOpen = true;
-    try {
-      const data = await getForkHistory(recipe.slug, selectedFork);
-      historyEntries = data.history;
-    } catch (e) {
-      historyEntries = [];
+    historyChanges = [];
+    historyEntries = [];
+    if (selectedFork) {
+      try {
+        const data = await getForkHistory(recipe.slug, selectedFork);
+        historyEntries = data.history;
+      } catch (e) {
+        historyEntries = [];
+      }
+    } else {
+      try {
+        const data = await getRecipeHistory(recipe.slug);
+        const entries = data.history;
+        // Diff consecutive pairs (newest first): entry[i] vs entry[i+1]
+        const changes: HistoryChange[] = [];
+        for (let i = 0; i < entries.length - 1; i++) {
+          const newer = entries[i];
+          const older = entries[i + 1];
+          if (!newer.content || !older.content) continue;
+          const diffs = computeSectionDiffs(older.content, newer.content);
+          const changedSections = [...diffs.values()].filter(d => d.hasChanges);
+          if (changedSections.length > 0) {
+            changes.push({ date: newer.date, message: newer.message, diffs: changedSections });
+          }
+        }
+        historyChanges = changes;
+      } catch (e) {
+        historyChanges = [];
+      }
     }
     historyLoading = false;
   }
 
-  async function handleMergeFork() {
-    if (!recipe || !selectedFork) return;
-    if (!confirm(`Merge "${forkDetail?.fork_name}" changes into the original recipe?`)) return;
+  function openNoteForm(action: 'merge' | 'fail') {
+    noteFormAction = action;
+    noteText = '';
+    mergeMessage = '';
+  }
+
+  function cancelNoteForm() {
+    noteFormAction = null;
+    noteText = '';
+  }
+
+  async function submitNote() {
+    if (!recipe || !selectedFork || !noteText.trim()) return;
     merging = true;
     mergeMessage = '';
     try {
-      await mergeFork(recipe.slug, selectedFork);
+      if (noteFormAction === 'merge') {
+        await mergeFork(recipe.slug, selectedFork, noteText.trim());
+        mergeMessage = 'Fork merged into original';
+      } else if (noteFormAction === 'fail') {
+        await failFork(recipe.slug, selectedFork, noteText.trim());
+        mergeMessage = 'Fork marked as failed';
+      }
+      noteFormAction = null;
+      noteText = '';
       recipe = await getRecipe(slug);
       if (selectedFork) await selectFork(selectedFork);
-      mergeMessage = 'Fork merged into original';
     } catch (e: any) {
-      mergeMessage = e.message || 'Merge failed';
+      mergeMessage = e.message || 'Operation failed';
     }
     merging = false;
   }
@@ -368,23 +428,6 @@
       mergeMessage = 'Fork unmerged — original restored';
     } catch (e: any) {
       mergeMessage = e.message || 'Unmerge failed';
-    }
-    merging = false;
-  }
-
-  async function handleFailFork() {
-    if (!recipe || !selectedFork) return;
-    const reason = prompt(`Why did "${forkDetail?.fork_name}" fail?`);
-    if (!reason) return;
-    merging = true;
-    mergeMessage = '';
-    try {
-      await failFork(recipe.slug, selectedFork, reason);
-      recipe = await getRecipe(slug);
-      if (selectedFork) await selectFork(selectedFork);
-      mergeMessage = 'Fork marked as failed';
-    } catch (e: any) {
-      mergeMessage = e.message || 'Failed to mark fork';
     }
     merging = false;
   }
@@ -426,7 +469,47 @@
 
   function exportOriginal() {
     if (!recipe) return;
-    const blob = new Blob([displayContent], { type: 'text/markdown' });
+
+    // Build frontmatter
+    const meta: Record<string, any> = {
+      title: recipe.title,
+      tags: recipe.tags,
+    };
+    if (recipe.servings) meta.servings = recipe.servings;
+    if (recipe.prep_time) meta.prep_time = recipe.prep_time;
+    if (recipe.cook_time) meta.cook_time = recipe.cook_time;
+    if (recipe.source) meta.source = recipe.source;
+    if (recipe.author) meta.author = recipe.author;
+    if (recipe.date_added) meta.date_added = recipe.date_added;
+
+    if (!stripHistory) {
+      if (recipe.version) meta.version = recipe.version;
+      if (recipe.changelog && recipe.changelog.length > 0) meta.changelog = recipe.changelog;
+    }
+
+    // Serialize frontmatter
+    const fm_lines = ['---'];
+    for (const [key, value] of Object.entries(meta)) {
+      if (Array.isArray(value)) {
+        if (key === 'changelog') {
+          fm_lines.push(`${key}:`);
+          for (const entry of value) {
+            fm_lines.push(`- action: ${entry.action}`);
+            fm_lines.push(`  date: '${entry.date}'`);
+            fm_lines.push(`  summary: ${entry.summary}`);
+          }
+        } else {
+          fm_lines.push(`${key}: [${value.join(', ')}]`);
+        }
+      } else {
+        fm_lines.push(`${key}: ${value}`);
+      }
+    }
+    fm_lines.push('---');
+    const frontmatter = fm_lines.join('\n');
+
+    const fullMarkdown = frontmatter + '\n\n' + displayContent;
+    const blob = new Blob([fullMarkdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -560,11 +643,37 @@
               <button class="merge-btn unmerge" on:click={handleUnfailFork} disabled={merging}>
                 {merging ? 'Reactivating...' : 'Reactivate'}
               </button>
+            {:else if noteFormAction}
+              <form class="note-form" on:submit|preventDefault={submitNote}>
+                <label class="note-label" for="note-input">
+                  {noteFormAction === 'merge' ? 'What worked? Why is this better?' : 'What went wrong? Why didn\'t this work?'}
+                </label>
+                <textarea
+                  id="note-input"
+                  class="note-input"
+                  bind:value={noteText}
+                  placeholder={noteFormAction === 'merge' ? 'e.g. The extra garlic really rounds out the flavor' : 'e.g. Too much salt, overpowered everything'}
+                  rows="2"
+                  required
+                ></textarea>
+                <div class="note-form-actions">
+                  <button type="submit" class="merge-btn" class:fail={noteFormAction === 'fail'} disabled={merging || !noteText.trim()}>
+                    {#if merging}
+                      {noteFormAction === 'merge' ? 'Merging...' : 'Saving...'}
+                    {:else}
+                      {noteFormAction === 'merge' ? 'Merge into Original' : 'Mark as Failed'}
+                    {/if}
+                  </button>
+                  <button type="button" class="note-cancel" on:click={cancelNoteForm} disabled={merging}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
             {:else}
-              <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
-                {merging ? 'Merging...' : 'Merge into Original'}
+              <button class="merge-btn" on:click={() => openNoteForm('merge')} disabled={merging}>
+                Merge into Original
               </button>
-              <button class="merge-btn fail" on:click={handleFailFork} disabled={merging}>
+              <button class="merge-btn fail" on:click={() => openNoteForm('fail')} disabled={merging}>
                 Mark as Failed
               </button>
             {/if}
@@ -606,14 +715,12 @@
               <rect x="6" y="14" width="12" height="8" />
             </svg>
           </button>
-          {#if selectedFork}
-            <button class="history-btn" class:active={historyOpen} on:click={toggleHistory} aria-label="Fork history">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-            </button>
-          {/if}
+          <button class="history-btn" class:active={historyOpen} on:click={toggleHistory} aria-label="Recipe history">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </button>
           <button class="stream-btn" class:active={streamOpen} on:click={toggleStream} aria-label="Recipe stream">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="6" y1="3" x2="6" y2="15" />
@@ -633,17 +740,53 @@
 
     {#if historyOpen}
       <div class="history-panel">
-        <h3>Fork History</h3>
+        <h3>{selectedFork ? 'Fork History' : 'Recipe History'}</h3>
         {#if historyLoading}
           <p class="history-loading">Loading history...</p>
-        {:else if historyEntries.length === 0}
-          <p class="history-empty">No history available</p>
+        {:else if selectedFork}
+          {#if historyEntries.length === 0}
+            <p class="history-empty">No history available</p>
+          {:else}
+            <div class="history-timeline">
+              {#each historyEntries as entry}
+                <div class="history-entry">
+                  <span class="history-date">{new Date(entry.date).toLocaleDateString()}</span>
+                  <span class="history-message">{entry.message}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {:else if historyChanges.length === 0}
+          <p class="history-empty">No changes recorded</p>
         {:else}
           <div class="history-timeline">
-            {#each historyEntries as entry}
-              <div class="history-entry">
-                <span class="history-date">{new Date(entry.date).toLocaleDateString()}</span>
-                <span class="history-message">{entry.message}</span>
+            {#each historyChanges as change}
+              <div class="history-change">
+                <div class="history-change-header">
+                  <span class="history-date">{new Date(change.date).toLocaleDateString()}</span>
+                  <span class="history-message">{change.message}</span>
+                </div>
+                <div class="history-diffs">
+                  {#each change.diffs as diff}
+                    <div class="history-section-diff">
+                      <span class="history-section-name">{diff.sectionName}</span>
+                      <ul class="history-diff-lines">
+                        {#each diff.lines.filter(l => l.status !== 'unchanged') as line}
+                          <li class="history-diff-line">
+                            {#if line.status === 'removed'}
+                              <span class="diff-removed">&minus; {(line.baseLine || '').replace(/^[-\d.]+\s*/, '')}</span>
+                            {:else if line.status === 'added'}
+                              <span class="diff-added">+ {(line.forkLine || '').replace(/^[-\d.]+\s*/, '')}</span>
+                            {:else if line.status === 'modified'}
+                              <span class="diff-removed">&minus; {(line.baseLine || '').replace(/^[-\d.]+\s*/, '')}</span>
+                              <span class="diff-added">+ {(line.forkLine || '').replace(/^[-\d.]+\s*/, '')}</span>
+                            {/if}
+                          </li>
+                        {/each}
+                      </ul>
+                    </div>
+                  {/each}
+                </div>
               </div>
             {/each}
           </div>
@@ -704,6 +847,15 @@
             {@html ingredientsHtml}
           </div>
 
+        </aside>
+
+        <div class="recipe-main">
+          <div class="recipe-body">
+            {@html mainBodyHtml}
+          </div>
+        </div>
+
+        <div class="sidebar-bottom">
           {#if recipe.tags.length > 0}
             <div class="tags">
               {#each recipe.tags as tag}
@@ -731,16 +883,14 @@
               Export Recipe
             </a>
           {:else}
+            <label class="export-option">
+              <input type="checkbox" bind:checked={stripHistory} />
+              <span>Strip edit history</span>
+            </label>
             <button class="export-btn" on:click={exportOriginal}>
               Export Recipe
             </button>
           {/if}
-        </aside>
-
-        <div class="recipe-main">
-          <div class="recipe-body">
-            {@html mainBodyHtml}
-          </div>
         </div>
       </div>
     {/if}
@@ -839,13 +989,20 @@
   .recipe-layout {
     display: grid;
     grid-template-columns: 300px 1fr;
-    gap: 2.5rem;
+    column-gap: 2.5rem;
     align-items: start;
     margin-top: 1rem;
   }
 
   .recipe-sidebar {
     position: static;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .sidebar-bottom {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .sidebar-meta {
@@ -893,11 +1050,25 @@
     font-size: 1.1rem;
   }
 
+  .export-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+  }
+
+  .export-option input[type="checkbox"] {
+    cursor: pointer;
+  }
+
   .export-btn {
     display: block;
     width: 100%;
     padding: 0.5rem;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     background: var(--color-surface);
@@ -918,6 +1089,8 @@
 
   .recipe-main {
     min-width: 0;
+    grid-column: 2;
+    grid-row: 1 / 3;
   }
 
   .recipe-main :global(h2:first-child) {
@@ -943,6 +1116,57 @@
     gap: 0.4rem;
     align-items: center;
     margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .note-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .note-label {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  .note-input {
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    resize: vertical;
+    min-height: 2.5rem;
+  }
+
+  .note-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  .note-form-actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .note-cancel {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .note-cancel:hover {
+    color: var(--color-text);
   }
 
   .version-pill {
@@ -1223,6 +1447,67 @@
     color: var(--color-text-muted);
   }
 
+  .history-change {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .history-change:last-child {
+    border-bottom: none;
+  }
+
+  .history-change-header {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    margin-bottom: 0.35rem;
+  }
+
+  .history-diffs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-left: 0.5rem;
+  }
+
+  .history-section-diff {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .history-section-name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+  }
+
+  .history-diff-lines {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .history-diff-line {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .history-diff-line .diff-removed {
+    color: var(--color-danger, #c0392b);
+    text-decoration: line-through;
+    opacity: 0.8;
+  }
+
+  .history-diff-line .diff-added {
+    color: var(--color-success, #27ae60);
+  }
+
   .stream-panel {
     margin-top: 1rem;
     padding: 1rem;
@@ -1407,6 +1692,13 @@
       grid-template-columns: 1fr;
     }
 
+    .recipe-sidebar,
+    .recipe-main,
+    .sidebar-bottom {
+      grid-column: 1;
+      grid-row: auto;
+    }
+
     .recipe-sidebar {
       position: static;
       max-height: none;
@@ -1415,6 +1707,12 @@
 
     .sidebar-ingredients {
       margin-bottom: 1rem;
+    }
+
+    .sidebar-bottom {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--color-border);
     }
   }
 
@@ -1443,6 +1741,39 @@
     .recipe-actions :global(a) {
       font-size: 0.8rem;
       padding: 0.35rem 0.75rem;
+    }
+
+    .action-icons {
+      width: 100%;
+      margin-left: 0;
+      justify-content: space-around;
+      padding: 0.6rem 0 0.25rem;
+      border-top: 1px solid var(--color-border);
+      margin-top: 0.5rem;
+      gap: 0.25rem;
+    }
+
+    .action-icons .grocery-icon-btn,
+    .action-icons .print-btn,
+    .action-icons .history-btn,
+    .action-icons .stream-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-lg, 8px);
+    }
+
+    .action-icons :global(.favorite-btn) {
+      width: 48px;
+      height: 48px;
+      justify-content: center;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg, 8px);
+      background: var(--color-surface);
+    }
+
+    .action-icons :global(svg) {
+      width: 24px;
+      height: 24px;
     }
 
     .recipe-body {

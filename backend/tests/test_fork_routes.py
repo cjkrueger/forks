@@ -272,7 +272,7 @@ class TestDeleteFork:
         """Deleting a fork removes its merge/unmerge entries from the base changelog."""
         # Create and merge a fork
         client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
-        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge", json={"note": "Better with coconut oil"})
 
         # Verify base has a merge changelog entry
         base_path = tmp_recipes / "chocolate-cookies.md"
@@ -360,7 +360,7 @@ class TestForkCreationTracksCommit:
 class TestMergeFork:
     def test_merge_fork_into_base(self, client, tmp_recipes):
         client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
-        resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge", json={"note": "Better with coconut oil"})
         assert resp.status_code == 200
         assert resp.json()["merged"] is True
         base_content = (tmp_recipes / "chocolate-cookies.md").read_text()
@@ -368,21 +368,21 @@ class TestMergeFork:
 
     def test_merge_sets_merged_at_on_fork(self, client, tmp_recipes):
         client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
-        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge", json={"note": "Better with coconut oil"})
         fork_content = (tmp_recipes / "chocolate-cookies.fork.vegan-version.md").read_text()
         assert "merged_at:" in fork_content
 
     def test_merge_fork_not_found(self, client):
-        resp = client.post("/api/recipes/chocolate-cookies/forks/nonexistent/merge")
+        resp = client.post("/api/recipes/chocolate-cookies/forks/nonexistent/merge", json={"note": "test"})
         assert resp.status_code == 404
 
     def test_merge_base_not_found(self, client):
-        resp = client.post("/api/recipes/nonexistent/forks/some-fork/merge")
+        resp = client.post("/api/recipes/nonexistent/forks/some-fork/merge", json={"note": "test"})
         assert resp.status_code == 404
 
     def test_merged_fork_shows_in_index(self, client):
         client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
-        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge", json={"note": "Better with coconut oil"})
         resp = client.get("/api/recipes/chocolate-cookies")
         fork = resp.json()["forks"][0]
         assert fork["merged_at"] is not None
@@ -395,7 +395,7 @@ class TestUnmergeFork:
         original_content = base_path.read_text()
 
         client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
-        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge", json={"note": "Better with coconut oil"})
         # Verify merge changed the base
         assert "coconut oil" in base_path.read_text()
 
@@ -412,7 +412,7 @@ class TestUnmergeFork:
     def test_unmerge_clears_merged_at(self, client, tmp_recipes):
         """After unmerge, fork frontmatter should not have merged_at."""
         client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
-        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge", json={"note": "Better with coconut oil"})
 
         fork_path = tmp_recipes / "chocolate-cookies.fork.vegan-version.md"
         assert "merged_at:" in fork_path.read_text()

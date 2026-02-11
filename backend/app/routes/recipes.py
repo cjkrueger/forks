@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.git import git_log, git_show
 from app.index import RecipeIndex
 from app.models import Recipe, RecipeSummary
 
@@ -45,6 +46,18 @@ def create_recipe_router(index: RecipeIndex) -> APIRouter:
         if recipe is None:
             raise HTTPException(status_code=404, detail="Recipe not found")
         return recipe
+
+    @router.get("/recipes/{slug}/history")
+    def recipe_history(slug: str):
+        """Return git history for the base recipe with content at each version."""
+        path = index.recipes_dir / f"{slug}.md"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        entries = git_log(index.recipes_dir, path)
+        for entry in entries:
+            entry["content"] = git_show(index.recipes_dir, entry["hash"], path)
+        return {"history": entries}
 
     @router.get("/search", response_model=List[RecipeSummary])
     def search_recipes(q: str = Query("")):

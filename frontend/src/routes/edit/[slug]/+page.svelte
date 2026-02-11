@@ -212,6 +212,7 @@
 <style>
   .edit-page {
     max-width: 720px;
+    margin: 0 auto;
   }
 
   .back-link {
