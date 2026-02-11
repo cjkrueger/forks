@@ -1,4 +1,4 @@
-import type { Recipe, RecipeInput, RecipeSummary, ScrapeResponse, ForkDetail, ForkInput, CookHistoryEntry, SyncStatus, AppSettings, StreamTimeline } from './types';
+import type { Recipe, RecipeInput, RecipeSummary, ScrapeResponse, ForkDetail, ForkInput, CookHistoryEntry, SyncStatus, AppSettings, StreamTimeline, GroceryList } from './types';
 
 const BASE = '/api';
 
@@ -174,6 +174,30 @@ export async function saveMealPlan(weeks: Record<string, { slug: string; fork?: 
   return res.json();
 }
 
+export async function addMealToDay(date: string, slug: string, fork?: string): Promise<{ date: string; meals: { slug: string; fork?: string }[] }> {
+  const body: Record<string, string> = { slug };
+  if (fork) body.fork = fork;
+  const res = await fetch(`${BASE}/meal-plan/${date}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Failed to add meal');
+  return res.json();
+}
+
+export async function removeMealFromDay(date: string, mealIndex: number): Promise<{ date: string; meals: { slug: string; fork?: string }[] }> {
+  const res = await fetch(`${BASE}/meal-plan/${date}/${mealIndex}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to remove meal');
+  return res.json();
+}
+
+export async function clearMealDay(date: string): Promise<{ date: string; meals: { slug: string; fork?: string }[] }> {
+  const res = await fetch(`${BASE}/meal-plan/${date}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to clear day');
+  return res.json();
+}
+
 export async function uploadImage(file: File): Promise<{ path: string }> {
   const formData = new FormData();
   formData.append('file', file);
@@ -287,4 +311,67 @@ export async function unfailFork(slug: string, forkName: string): Promise<{ unfa
     throw new Error(err.detail || 'Reactivate failed');
   }
   return res.json();
+}
+
+// Grocery API
+
+export async function getGroceryList(): Promise<GroceryList> {
+  const res = await fetch(`${BASE}/grocery`);
+  if (!res.ok) throw new Error('Failed to fetch grocery list');
+  return res.json();
+}
+
+export async function addRecipeToGroceryApi(
+  slug: string,
+  title: string,
+  ingredients: string[],
+  fork?: string | null,
+  servings?: string | null,
+): Promise<GroceryList> {
+  const body: Record<string, unknown> = { slug, title, ingredients };
+  if (fork) body.fork = fork;
+  if (servings) body.servings = servings;
+  const res = await fetch(`${BASE}/grocery/recipes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Failed to add to grocery list');
+  return res.json();
+}
+
+export async function removeRecipeFromGroceryApi(slug: string): Promise<GroceryList> {
+  const res = await fetch(`${BASE}/grocery/recipes/${slug}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to remove from grocery list');
+  return res.json();
+}
+
+export async function toggleGroceryChecked(itemKey: string): Promise<GroceryList> {
+  const res = await fetch(`${BASE}/grocery/check/${encodeURIComponent(itemKey)}`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to toggle checked');
+  return res.json();
+}
+
+export async function removeGroceryItem(itemKey: string): Promise<GroceryList> {
+  const res = await fetch(`${BASE}/grocery/items/${encodeURIComponent(itemKey)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to remove item');
+  return res.json();
+}
+
+export async function clearGroceryChecked(): Promise<GroceryList> {
+  const res = await fetch(`${BASE}/grocery/checked`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to clear checked');
+  return res.json();
+}
+
+export async function clearGroceryAll(): Promise<GroceryList> {
+  const res = await fetch(`${BASE}/grocery`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to clear grocery list');
+  return res.json();
+}
+
+export async function exportGroceryList(): Promise<string> {
+  const res = await fetch(`${BASE}/grocery/export`);
+  if (!res.ok) throw new Error('Failed to export grocery list');
+  return res.text();
 }

@@ -1,10 +1,12 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import PlainTextResponse
 
 from app.git import git_log, git_show
 from app.index import RecipeIndex
 from app.models import Recipe, RecipeSummary
+from app.sections import extract_structured_data
 
 
 def create_recipe_router(index: RecipeIndex) -> APIRouter:
@@ -45,7 +47,18 @@ def create_recipe_router(index: RecipeIndex) -> APIRouter:
         recipe = index.get(slug)
         if recipe is None:
             raise HTTPException(status_code=404, detail="Recipe not found")
-        return recipe
+        structured = extract_structured_data(recipe.content)
+        return {**recipe.model_dump(), **structured}
+
+    @router.get("/recipes/{slug}/export")
+    def export_recipe(slug: str):
+        path = index.recipes_dir / f"{slug}.md"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Recipe not found")
+        return PlainTextResponse(
+            content=path.read_text(),
+            headers={"Content-Disposition": f'attachment; filename="{slug}.md"'},
+        )
 
     @router.get("/recipes/{slug}/history")
     def recipe_history(slug: str):
@@ -62,5 +75,13 @@ def create_recipe_router(index: RecipeIndex) -> APIRouter:
     @router.get("/search", response_model=List[RecipeSummary])
     def search_recipes(q: str = Query("")):
         return index.search(q)
+
+    @router.get("/tags")
+    def list_tags():
+        tags: dict[str, int] = {}
+        for recipe in index.list_all():
+            for tag in recipe.tags:
+                tags[tag] = tags.get(tag, 0) + 1
+        return [{"tag": t, "count": c} for t, c in sorted(tags.items())]
 
     return router

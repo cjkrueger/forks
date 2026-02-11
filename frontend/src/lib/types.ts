@@ -41,6 +41,9 @@ export interface RecipeSummary {
 
 export interface Recipe extends RecipeSummary {
   content: string;
+  ingredients: string[];
+  instructions: string[];
+  notes: string[];
 }
 
 export interface ForkDetail extends ForkSummary {
@@ -139,4 +142,24 @@ export interface SyncConfig {
 export interface AppSettings {
   remote: RemoteConfig;
   sync: SyncConfig;
+}
+
+export interface GroceryItem {
+  quantity: number | null;
+  unit: string | null;
+  name: string;
+  displayText: string;
+  original: string;
+}
+
+export interface GroceryRecipe {
+  title: string;
+  fork: string | null;
+  servings: string | null;
+  items: GroceryItem[];
+}
+
+export interface GroceryList {
+  recipes: Record<string, GroceryRecipe>;
+  checked: string[];
 }

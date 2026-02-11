@@ -1,6 +1,16 @@
 import { writable, derived } from 'svelte/store';
-import { parseIngredient, ingredientKey, formatQuantity } from './ingredients';
+import { ingredientKey, formatQuantity } from './ingredients';
 import type { ParsedIngredient } from './ingredients';
+import type { GroceryList } from './types';
+import {
+  getGroceryList,
+  addRecipeToGroceryApi,
+  removeRecipeFromGroceryApi,
+  toggleGroceryChecked,
+  removeGroceryItem,
+  clearGroceryChecked,
+  clearGroceryAll,
+} from './api';
 
 export interface GroceryRecipe {
   title: string;
@@ -15,90 +25,87 @@ export interface GroceryStore {
   customCombines: Array<{ keys: string[]; quantity: number | null; unit: string | null; name: string }>;
 }
 
-const STORAGE_KEY = 'forks-grocery-list';
-
-function loadStore(): GroceryStore {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
+function emptyStore(): GroceryStore {
   return { recipes: {}, checked: [], customCombines: [] };
 }
 
-function saveStore(store: GroceryStore) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+function apiToStore(data: GroceryList): GroceryStore {
+  return {
+    recipes: data.recipes as unknown as Record<string, GroceryRecipe>,
+    checked: data.checked,
+    customCombines: [],
+  };
 }
 
-export const groceryStore = writable<GroceryStore>(loadStore());
+export const groceryStore = writable<GroceryStore>(emptyStore());
 
-groceryStore.subscribe(saveStore);
+export async function initGroceryStore() {
+  try {
+    const data = await getGroceryList();
+    groceryStore.set(apiToStore(data));
+  } catch {
+    // If API fails, start with empty store
+  }
+}
 
-export function addRecipeToGrocery(
+export async function addRecipeToGrocery(
   slug: string,
   title: string,
   ingredients: string[],
   fork: string | null = null,
   servings: string | null = null,
 ) {
-  groceryStore.update(store => {
-    store.recipes[slug] = {
-      title,
-      fork,
-      servings,
-      items: ingredients.map(parseIngredient),
-    };
-    return store;
-  });
+  try {
+    const data = await addRecipeToGroceryApi(slug, title, ingredients, fork, servings);
+    groceryStore.set(apiToStore(data));
+  } catch (e) {
+    console.error('Failed to add recipe to grocery list', e);
+  }
 }
 
-export function removeRecipeFromGrocery(slug: string) {
-  groceryStore.update(store => {
-    delete store.recipes[slug];
-    return store;
-  });
+export async function removeRecipeFromGrocery(slug: string) {
+  try {
+    const data = await removeRecipeFromGroceryApi(slug);
+    groceryStore.set(apiToStore(data));
+  } catch (e) {
+    console.error('Failed to remove recipe from grocery list', e);
+  }
 }
 
-export function toggleChecked(key: string) {
-  groceryStore.update(store => {
-    const idx = store.checked.indexOf(key);
-    if (idx >= 0) {
-      store.checked.splice(idx, 1);
-    } else {
-      store.checked.push(key);
-    }
-    return store;
-  });
+export async function toggleChecked(key: string) {
+  try {
+    const data = await toggleGroceryChecked(key);
+    groceryStore.set(apiToStore(data));
+  } catch (e) {
+    console.error('Failed to toggle checked', e);
+  }
 }
 
-export function clearChecked() {
-  groceryStore.update(store => {
-    store.checked = [];
-    return store;
-  });
+export async function clearChecked() {
+  try {
+    const data = await clearGroceryChecked();
+    groceryStore.set(apiToStore(data));
+  } catch (e) {
+    console.error('Failed to clear checked', e);
+  }
 }
 
-export function removeItem(key: string) {
-  groceryStore.update(store => {
-    if (key.startsWith('custom:')) {
-      const name = key.slice(7);
-      store.customCombines = store.customCombines.filter(c => c.name !== name);
-    } else {
-      for (const slug of Object.keys(store.recipes)) {
-        store.recipes[slug].items = store.recipes[slug].items.filter(
-          item => ingredientKey(item) !== key
-        );
-        if (store.recipes[slug].items.length === 0) {
-          delete store.recipes[slug];
-        }
-      }
-    }
-    store.checked = store.checked.filter(k => k !== key);
-    return store;
-  });
+export async function removeItem(key: string) {
+  try {
+    const data = await removeGroceryItem(key);
+    groceryStore.set(apiToStore(data));
+  } catch (e) {
+    console.error('Failed to remove item', e);
+  }
 }
 
-export function clearAll() {
-  groceryStore.set({ recipes: {}, checked: [], customCombines: [] });
+export async function clearAll() {
+  try {
+    const data = await clearGroceryAll();
+    groceryStore.set(apiToStore(data));
+  } catch (e) {
+    console.error('Failed to clear grocery list', e);
+  }
 }
 
 export function addCustomCombine(keys: string[], quantity: number | null, unit: string | null, name: string) {

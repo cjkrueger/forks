@@ -1,11 +1,10 @@
 import datetime
-import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import frontmatter
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.git import git_commit
@@ -21,6 +20,11 @@ class MealSlot(BaseModel):
 
 class SavePlanRequest(BaseModel):
     weeks: Dict[str, List[MealSlot]]
+
+
+class AddMealRequest(BaseModel):
+    slug: str
+    fork: Optional[str] = None
 
 
 def _week_key_for_date(date_str: str) -> str:
@@ -147,5 +151,57 @@ def create_planner_router(recipes_dir: Path, config_path: Path) -> APIRouter:
             all_days.update(existing)
 
         return {"weeks": all_days}
+
+    @router.post("/{date}")
+    def add_meal_to_day(date: str, meal: AddMealRequest):
+        """Add a meal to a specific date."""
+        try:
+            datetime.date.fromisoformat(date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+
+        week_key = _week_key_for_date(date)
+        days = _load_week(week_key)
+        day_meals = days.get(date, [])
+        entry: dict = {"slug": meal.slug}
+        if meal.fork:
+            entry["fork"] = meal.fork
+        day_meals.append(entry)
+        days[date] = day_meals
+        _save_week(week_key, days)
+        return {"date": date, "meals": days.get(date, [])}
+
+    @router.delete("/{date}")
+    def clear_day(date: str):
+        """Clear all meals for a specific date."""
+        try:
+            datetime.date.fromisoformat(date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+
+        week_key = _week_key_for_date(date)
+        days = _load_week(week_key)
+        if date in days:
+            del days[date]
+        _save_week(week_key, days)
+        return {"date": date, "meals": []}
+
+    @router.delete("/{date}/{meal_index}")
+    def remove_meal_from_day(date: str, meal_index: int):
+        """Remove a specific meal by index from a date."""
+        try:
+            datetime.date.fromisoformat(date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+
+        week_key = _week_key_for_date(date)
+        days = _load_week(week_key)
+        day_meals = days.get(date, [])
+        if meal_index < 0 or meal_index >= len(day_meals):
+            raise HTTPException(status_code=404, detail="Meal index out of range")
+        day_meals.pop(meal_index)
+        days[date] = day_meals
+        _save_week(week_key, days)
+        return {"date": date, "meals": days.get(date, [])}
 
     return router

@@ -295,7 +295,10 @@ class TestMergeForkChangelog:
             json=_fork_input(),
         )
         # Merge fork
-        resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        resp = client.post(
+            "/api/recipes/chocolate-cookies/forks/vegan-version/merge",
+            json={"note": "Merging vegan version"},
+        )
         assert resp.status_code == 200
 
         # Check base recipe changelog

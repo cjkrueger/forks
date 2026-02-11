@@ -133,7 +133,7 @@
           const recipe = await getRecipe(meal.slug);
           const lines = getIngredientLines(recipe.content);
           if (lines.length > 0) {
-            addRecipeToGrocery(meal.slug, meal.title, lines, meal.fork || null, recipe.servings);
+            await addRecipeToGrocery(meal.slug, meal.title, lines, meal.fork || null, recipe.servings);
           }
         } catch (e) {
           console.error(`Failed to fetch recipe ${meal.slug}`, e);

@@ -22,7 +22,7 @@ def test_list_recipes(client):
     assert isinstance(data, list)
     assert len(data) >= 3
     slugs = [r["slug"] for r in data]
-    assert "birria-tacos" in slugs
+    assert "chicken-tikka-masala" in slugs
 
 
 def test_list_recipes_sorted_alphabetically(client):
@@ -54,11 +54,11 @@ def test_filter_by_multiple_tags(client):
 
 
 def test_get_recipe(client):
-    resp = client.get("/api/recipes/birria-tacos")
+    resp = client.get("/api/recipes/chicken-tikka-masala")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["slug"] == "birria-tacos"
-    assert data["title"] == "Birria Tacos"
+    assert data["slug"] == "chicken-tikka-masala"
+    assert data["title"] == "Chicken Tikka Masala"
     assert "content" in data
     assert "## Ingredients" in data["content"]
 
@@ -69,16 +69,16 @@ def test_get_recipe_not_found(client):
 
 
 def test_search_by_title(client):
-    resp = client.get("/api/search?q=carbonara")
+    resp = client.get("/api/search?q=tikka")
     assert resp.status_code == 200
     data = resp.json()
-    assert any(r["slug"] == "pasta-carbonara" for r in data)
+    assert any(r["slug"] == "chicken-tikka-masala" for r in data)
 
 
 def test_search_by_ingredient(client):
-    resp = client.get("/api/search?q=coconut milk")
+    resp = client.get("/api/search?q=coconut cream")
     data = resp.json()
-    assert any(r["slug"] == "thai-green-curry" for r in data)
+    assert any(r["slug"] == "chicken-tikka-masala" for r in data)
 
 
 def test_search_empty_returns_all(client):
@@ -91,3 +91,38 @@ def test_search_no_results(client):
     resp = client.get("/api/search?q=xyznonexistent")
     data = resp.json()
     assert len(data) == 0
+
+
+def test_get_recipe_includes_structured_fields(client):
+    """Recipe detail should include parsed ingredients, instructions, notes."""
+    resp = client.get("/api/recipes/7-layer-casserole")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "ingredients" in data
+    assert "instructions" in data
+    assert "notes" in data
+    assert isinstance(data["ingredients"], list)
+    assert len(data["ingredients"]) > 0
+
+
+def test_list_tags(client):
+    resp = client.get("/api/tags")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    # Each entry should have tag and count
+    assert all("tag" in t and "count" in t for t in data)
+
+
+def test_export_recipe(client):
+    resp = client.get("/api/recipes/7-layer-casserole/export")
+    assert resp.status_code == 200
+    assert "text/plain" in resp.headers["content-type"]
+    assert "7-Layer Casserole" in resp.text
+    assert "attachment" in resp.headers.get("content-disposition", "")
+
+
+def test_export_recipe_not_found(client):
+    resp = client.get("/api/recipes/does-not-exist/export")
+    assert resp.status_code == 404

@@ -33,8 +33,9 @@
     imageFailedUrl = null;
     try {
       const recipe = await createRecipe(data);
-      if (recipe._image_failed) {
-        imageFailedUrl = recipe._image_failed;
+      const imageErr = (recipe as unknown as Record<string, unknown>)._image_failed as string | undefined;
+      if (imageErr) {
+        imageFailedUrl = imageErr;
         savedSlug = recipe.slug;
         saving = false;
       } else {

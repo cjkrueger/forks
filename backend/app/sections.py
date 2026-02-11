@@ -169,6 +169,27 @@ def detect_changed_sections(old_content: str, new_content: str) -> list:
     return changed
 
 
+def extract_structured_data(content: str) -> dict:
+    """Extract ingredients, instructions, and notes as structured lists from markdown."""
+    sections = parse_sections(content)
+    ingredients = [
+        line.strip()[2:]
+        for line in sections.get("Ingredients", "").split("\n")
+        if line.strip().startswith("- ")
+    ]
+    instructions = [
+        m.group(1)
+        for line in sections.get("Instructions", "").split("\n")
+        if (m := re.match(r"^\d+\.\s+(.+)$", line.strip()))
+    ]
+    notes = [
+        line.strip()[2:]
+        for line in sections.get("Notes", "").split("\n")
+        if line.strip().startswith("- ")
+    ]
+    return {"ingredients": ingredients, "instructions": instructions, "notes": notes}
+
+
 def _normalize(text: str) -> str:
     """Normalize section text for comparison."""
     return re.sub(r"\s+", " ", text.strip())

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import {
     groceryStore,
     getMergedItems,
@@ -8,6 +9,7 @@
     removeRecipeFromGrocery,
     removeItem,
     addCustomCombine,
+    initGroceryStore,
   } from '$lib/grocery';
   import type { MergedItem } from '$lib/grocery';
 
@@ -15,6 +17,12 @@
   let combineMode = false;
   let combineName = '';
   let combineQuantity = '';
+  let loading = true;
+
+  onMount(async () => {
+    await initGroceryStore();
+    loading = false;
+  });
 
   $: items = getMergedItems($groceryStore);
   $: toBuy = items.filter(i => !i.checked);
@@ -78,7 +86,9 @@
 <div class="grocery">
   <h1>Grocery List</h1>
 
-  {#if items.length === 0}
+  {#if loading}
+    <p class="empty">Loading...</p>
+  {:else if items.length === 0}
     <p class="empty">Your grocery list is empty. Add recipes from their detail pages.</p>
   {:else}
     <div class="actions-bar">

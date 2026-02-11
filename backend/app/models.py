@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -47,6 +47,9 @@ class RecipeSummary(BaseModel):
 
 class Recipe(RecipeSummary):
     content: str
+    ingredients: List[str] = []
+    instructions: List[str] = []
+    notes: List[str] = []
 
 
 class ForkDetail(ForkSummary):
@@ -97,3 +100,31 @@ class SyncConfig(BaseModel):
     enabled: bool = False
     interval_seconds: int = 5400
     sync_meal_plans: bool = True
+
+
+class GroceryItem(BaseModel):
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    name: str
+    displayText: str
+    original: str
+
+
+class GroceryRecipe(BaseModel):
+    title: str
+    fork: Optional[str] = None
+    servings: Optional[str] = None
+    items: List[GroceryItem] = []
+
+
+class GroceryList(BaseModel):
+    recipes: Dict[str, GroceryRecipe] = {}
+    checked: List[str] = []
+
+
+class AddToGroceryRequest(BaseModel):
+    slug: str
+    title: str
+    ingredients: List[str]
+    fork: Optional[str] = None
+    servings: Optional[str] = None

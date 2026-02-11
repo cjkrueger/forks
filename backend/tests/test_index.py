@@ -9,9 +9,9 @@ def test_index_loads_all_recipes():
     idx = RecipeIndex(SAMPLE_DIR)
     idx.build()
     slugs = idx.list_slugs()
-    assert "birria-tacos" in slugs
-    assert "pasta-carbonara" in slugs
-    assert "thai-green-curry" in slugs
+    assert "chicken-tikka-masala" in slugs
+    assert "7-layer-casserole" in slugs
+    assert "how-to-make-cauliflower-rice" in slugs
 
 
 def test_index_list_all():
@@ -20,7 +20,7 @@ def test_index_list_all():
     recipes = idx.list_all()
     assert len(recipes) >= 3
     titles = [r.title for r in recipes]
-    assert "Birria Tacos" in titles
+    assert "Chicken Tikka Masala" in titles
 
 
 def test_index_list_sorted_alphabetically():
@@ -49,9 +49,9 @@ def test_index_filter_by_multiple_tags():
 def test_index_get_by_slug():
     idx = RecipeIndex(SAMPLE_DIR)
     idx.build()
-    recipe = idx.get("birria-tacos")
+    recipe = idx.get("chicken-tikka-masala")
     assert recipe is not None
-    assert recipe.title == "Birria Tacos"
+    assert recipe.title == "Chicken Tikka Masala"
     assert "## Ingredients" in recipe.content
 
 
@@ -64,30 +64,30 @@ def test_index_get_nonexistent_returns_none():
 def test_index_search_by_title():
     idx = RecipeIndex(SAMPLE_DIR)
     idx.build()
-    results = idx.search("carbonara")
+    results = idx.search("tikka")
     assert len(results) >= 1
-    assert any(r.slug == "pasta-carbonara" for r in results)
+    assert any(r.slug == "chicken-tikka-masala" for r in results)
 
 
 def test_index_search_by_tag():
     idx = RecipeIndex(SAMPLE_DIR)
     idx.build()
     results = idx.search("mexican")
-    assert any(r.slug == "birria-tacos" for r in results)
+    assert any(r.slug == "7-layer-casserole" for r in results)
 
 
 def test_index_search_by_ingredient():
     idx = RecipeIndex(SAMPLE_DIR)
     idx.build()
-    results = idx.search("coconut milk")
-    assert any(r.slug == "thai-green-curry" for r in results)
+    results = idx.search("coconut cream")
+    assert any(r.slug == "chicken-tikka-masala" for r in results)
 
 
 def test_index_search_case_insensitive():
     idx = RecipeIndex(SAMPLE_DIR)
     idx.build()
-    results = idx.search("BIRRIA")
-    assert any(r.slug == "birria-tacos" for r in results)
+    results = idx.search("CASSEROLE")
+    assert any(r.slug == "7-layer-casserole" for r in results)
 
 
 def test_index_search_empty_query_returns_all():
@@ -115,6 +115,6 @@ def test_index_remove():
     idx = RecipeIndex(SAMPLE_DIR)
     idx.build()
     count_before = len(idx.list_all())
-    idx.remove("birria-tacos")
+    idx.remove("chicken-tikka-masala")
     assert len(idx.list_all()) == count_before - 1
-    assert idx.get("birria-tacos") is None
+    assert idx.get("chicken-tikka-masala") is None

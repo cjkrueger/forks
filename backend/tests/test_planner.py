@@ -138,3 +138,69 @@ class TestSaveMealPlan:
         })
         assert (tmp_recipes / "meal-plans" / "2026-W07.md").exists()
         assert (tmp_recipes / "meal-plans" / "2026-W08.md").exists()
+
+
+class TestAddMealToDay:
+    def test_add_meal(self, client):
+        resp = client.post("/api/meal-plan/2026-02-09", json={"slug": "birria-tacos"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["date"] == "2026-02-09"
+        assert len(data["meals"]) == 1
+        assert data["meals"][0]["slug"] == "birria-tacos"
+
+    def test_add_meal_with_fork(self, client):
+        resp = client.post("/api/meal-plan/2026-02-09", json={
+            "slug": "birria-tacos", "fork": "spicy"
+        })
+        assert resp.json()["meals"][0]["fork"] == "spicy"
+
+    def test_add_multiple_meals(self, client):
+        client.post("/api/meal-plan/2026-02-09", json={"slug": "birria-tacos"})
+        resp = client.post("/api/meal-plan/2026-02-09", json={"slug": "chicken-soup"})
+        assert len(resp.json()["meals"]) == 2
+
+    def test_add_creates_week_file(self, client, tmp_recipes):
+        client.post("/api/meal-plan/2026-02-09", json={"slug": "birria-tacos"})
+        assert (tmp_recipes / "meal-plans" / "2026-W07.md").exists()
+
+    def test_invalid_date(self, client):
+        resp = client.post("/api/meal-plan/not-a-date", json={"slug": "birria-tacos"})
+        assert resp.status_code == 400
+
+
+class TestRemoveMealFromDay:
+    def test_remove_meal(self, client):
+        client.post("/api/meal-plan/2026-02-09", json={"slug": "birria-tacos"})
+        client.post("/api/meal-plan/2026-02-09", json={"slug": "chicken-soup"})
+        resp = client.delete("/api/meal-plan/2026-02-09/0")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["meals"]) == 1
+        assert data["meals"][0]["slug"] == "chicken-soup"
+
+    def test_remove_out_of_range(self, client):
+        client.post("/api/meal-plan/2026-02-09", json={"slug": "birria-tacos"})
+        resp = client.delete("/api/meal-plan/2026-02-09/5")
+        assert resp.status_code == 404
+
+    def test_remove_last_meal(self, client, tmp_recipes):
+        client.post("/api/meal-plan/2026-02-09", json={"slug": "birria-tacos"})
+        resp = client.delete("/api/meal-plan/2026-02-09/0")
+        assert resp.json()["meals"] == []
+        # Week file should be deleted when empty
+        assert not (tmp_recipes / "meal-plans" / "2026-W07.md").exists()
+
+
+class TestClearDay:
+    def test_clear_day(self, client):
+        client.post("/api/meal-plan/2026-02-09", json={"slug": "birria-tacos"})
+        client.post("/api/meal-plan/2026-02-09", json={"slug": "chicken-soup"})
+        resp = client.delete("/api/meal-plan/2026-02-09")
+        assert resp.status_code == 200
+        assert resp.json()["meals"] == []
+
+    def test_clear_empty_day(self, client):
+        resp = client.delete("/api/meal-plan/2026-02-09")
+        assert resp.status_code == 200
+        assert resp.json()["meals"] == []
