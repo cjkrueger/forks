@@ -61,10 +61,6 @@ You don't need to know git to use Forks. The app handles everything. But if you 
 - **Mark as failed** -- Tried a fork and it didn't work? Mark it as failed with a reason so you don't repeat the experiment
 - **Recipe Stream** -- A git-style timeline showing every fork, merge, edit, and failure
 
-<p align="center">
-  <img src="SCR-20260211-hyqz.png" alt="Recipe Stream showing fork history" width="500" />
-</p>
-
 ### Cooking
 - **Cook mode** -- Fullscreen step-by-step view with large text, optimized for kitchen use
 - **Inline timers** -- Timers detected automatically from recipe text ("cook for 10 minutes")

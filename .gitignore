@@ -8,3 +8,11 @@ build/
 dist/
 .env
 *.egg-info/
+.DS_Store
+recipes/*.md
+recipes/**/*.md
+recipes/images/*
+!recipes/images/.gitkeep
+recipes/meal-plans/*
+!recipes/meal-plans/.gitkeep
+recipes/grocery-list.json

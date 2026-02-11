@@ -1,12 +1,100 @@
-from pathlib import Path
+import textwrap
+
+import pytest
+
 from app.index import RecipeIndex
 
 
-SAMPLE_DIR = Path(__file__).resolve().parent.parent.parent / "recipes"
+CHICKEN_TIKKA = textwrap.dedent("""\
+    ---
+    title: Chicken Tikka Masala
+    tags: [chicken, indian]
+    servings: 4 servings
+    prep_time: 30min
+    cook_time: 50min
+    source: https://www.thekitchn.com/chicken-tikka-masala-recipe-23686912
+    image: images/chicken-tikka-masala.jpg
+    ---
+
+    # Chicken Tikka Masala
+
+    ## Ingredients
+
+    - 1 1/2 pounds boneless, skinless chicken thighs
+    - 1/2 cup coconut cream
+    - 1 teaspoon garam masala
+
+    ## Instructions
+
+    1. Marinate chicken thighs in yogurt and spices.
+    2. Sear chicken in a hot skillet.
+    3. Simmer in sauce until cooked through.
+""")
+
+CASSEROLE = textwrap.dedent("""\
+    ---
+    title: 7-Layer Casserole
+    tags: [mexican, beef]
+    servings: 6 servings
+    cook_time: 20min
+    source: https://www.foodnetwork.com/recipes/7-layer-casserole
+    image: images/7-layer-casserole.webp
+    ---
+
+    # 7-Layer Casserole
+
+    ## Ingredients
+
+    - 1 pound ground beef
+    - 2 tablespoons taco seasoning
+    - 1 cup frozen corn
+
+    ## Instructions
+
+    1. Preheat oven to 375 degrees F.
+    2. Brown beef with taco seasoning.
+    3. Layer ingredients in baking dish and bake.
+
+    ## Notes
+
+    - Serve with sour cream and salsa.
+""")
+
+CAULIFLOWER_RICE = textwrap.dedent("""\
+    ---
+    title: How to Make Cauliflower Rice
+    tags: [vegetable, quick]
+    servings: 4 servings
+    prep_time: 15min
+    ---
+
+    # How to Make Cauliflower Rice
+
+    ## Ingredients
+
+    - 1 large head cauliflower, cut into florets
+    - 2 tbsp extra-virgin olive oil
+    - Kosher salt and freshly ground black pepper
+
+    ## Instructions
+
+    1. Pulse cauliflower florets in a food processor until finely chopped.
+    2. Heat oil in a large skillet over medium heat.
+    3. Add riced cauliflower and cook until tender, 5 minutes.
+""")
 
 
-def test_index_loads_all_recipes():
-    idx = RecipeIndex(SAMPLE_DIR)
+@pytest.fixture
+def tmp_recipes(tmp_path):
+    (tmp_path / "images").mkdir()
+    (tmp_path / "chicken-tikka-masala.md").write_text(CHICKEN_TIKKA)
+    (tmp_path / "7-layer-casserole.md").write_text(CASSEROLE)
+    (tmp_path / "how-to-make-cauliflower-rice.md").write_text(CAULIFLOWER_RICE)
+    return tmp_path
+
+
+def test_index_loads_all_recipes(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     slugs = idx.list_slugs()
     assert "chicken-tikka-masala" in slugs
@@ -14,40 +102,40 @@ def test_index_loads_all_recipes():
     assert "how-to-make-cauliflower-rice" in slugs
 
 
-def test_index_list_all():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_list_all(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     recipes = idx.list_all()
-    assert len(recipes) >= 3
+    assert len(recipes) == 3
     titles = [r.title for r in recipes]
     assert "Chicken Tikka Masala" in titles
 
 
-def test_index_list_sorted_alphabetically():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_list_sorted_alphabetically(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     recipes = idx.list_all()
     titles = [r.title for r in recipes]
     assert titles == sorted(titles)
 
 
-def test_index_filter_by_tags():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_filter_by_tags(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     results = idx.filter_by_tags(["mexican"])
     assert len(results) >= 1
     assert all("mexican" in r.tags for r in results)
 
 
-def test_index_filter_by_multiple_tags():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_filter_by_multiple_tags(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     results = idx.filter_by_tags(["mexican", "beef"])
     assert all("mexican" in r.tags and "beef" in r.tags for r in results)
 
 
-def test_index_get_by_slug():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_get_by_slug(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     recipe = idx.get("chicken-tikka-masala")
     assert recipe is not None
@@ -55,46 +143,46 @@ def test_index_get_by_slug():
     assert "## Ingredients" in recipe.content
 
 
-def test_index_get_nonexistent_returns_none():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_get_nonexistent_returns_none(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     assert idx.get("nonexistent-recipe") is None
 
 
-def test_index_search_by_title():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_search_by_title(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     results = idx.search("tikka")
     assert len(results) >= 1
     assert any(r.slug == "chicken-tikka-masala" for r in results)
 
 
-def test_index_search_by_tag():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_search_by_tag(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     results = idx.search("mexican")
     assert any(r.slug == "7-layer-casserole" for r in results)
 
 
-def test_index_search_by_ingredient():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_search_by_ingredient(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     results = idx.search("coconut cream")
     assert any(r.slug == "chicken-tikka-masala" for r in results)
 
 
-def test_index_search_case_insensitive():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_search_case_insensitive(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     results = idx.search("CASSEROLE")
     assert any(r.slug == "7-layer-casserole" for r in results)
 
 
-def test_index_search_empty_query_returns_all():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_search_empty_query_returns_all(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     results = idx.search("")
-    assert len(results) >= 3
+    assert len(results) == 3
 
 
 def test_index_update_on_file_change(tmp_path):
@@ -111,8 +199,8 @@ def test_index_update_on_file_change(tmp_path):
     assert len(idx.list_all()) == 2
 
 
-def test_index_remove():
-    idx = RecipeIndex(SAMPLE_DIR)
+def test_index_remove(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
     idx.build()
     count_before = len(idx.list_all())
     idx.remove("chicken-tikka-masala")
