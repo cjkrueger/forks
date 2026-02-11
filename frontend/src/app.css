@@ -101,7 +101,11 @@ textarea::placeholder {
 }
 
 @media print {
-  /* Hide UI chrome */
+  @page {
+    margin: 0.75in;
+  }
+
+  /* Hide all UI chrome */
   .topbar,
   .sidebar,
   .overlay,
@@ -122,37 +126,52 @@ textarea::placeholder {
   .history-btn,
   .action-bar,
   .hero-overlay,
-  .hero-actions {
+  .hero-actions,
+  .hero-banner,
+  .no-hero-title,
+  .sidebar-meta,
+  .stream-btn,
+  .stream-panel,
+  .merge-message,
+  .merged-badge {
     display: none !important;
   }
 
-  /* Show hero image naturally in print */
-  .hero-banner {
-    position: static !important;
-    width: 100% !important;
-    margin-left: 0 !important;
-    height: auto !important;
-    max-height: none !important;
+  /* Show print header */
+  .print-header {
+    display: block !important;
   }
 
-  .hero-image {
-    width: 100% !important;
-    max-height: 300px !important;
-    object-fit: cover !important;
-    border-radius: 0 !important;
+  .print-title {
+    font-size: 18pt !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.25em !important;
   }
 
-  /* Hide diff decorations in print */
-  .diff-removed,
-  .diff-annotation {
-    display: none !important;
+  .print-meta {
+    font-size: 10pt !important;
+    color: #666 !important;
+    margin-bottom: 1em !important;
   }
 
-  .diff-added,
-  .diff-modified {
+  /* Single-column layout */
+  .recipe-layout {
+    display: block !important;
+  }
+
+  .recipe-sidebar,
+  .sidebar-ingredients {
+    border: none !important;
     background: none !important;
-    border-left: none !important;
-    padding-left: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide serving scaler buttons */
+  .scale-btn,
+  .reset-link {
+    display: none !important;
   }
 
   /* Layout resets */
@@ -165,24 +184,7 @@ textarea::placeholder {
     display: block !important;
   }
 
-  /* Typography optimization */
-  .recipe {
-    max-width: 100% !important;
-  }
-
-  .recipe-body {
-    font-size: 11pt !important;
-    line-height: 1.6 !important;
-  }
-
-  /* Show source URL as text */
-  .source-link::after {
-    content: " (" attr(href) ")";
-    font-size: 9pt;
-    color: #666;
-  }
-
-  /* No backgrounds/shadows */
+  /* Clean reset */
   * {
     box-shadow: none !important;
   }
@@ -190,19 +192,62 @@ textarea::placeholder {
   body {
     background: white !important;
     color: black !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
   }
 
-  /* Avoid page breaks inside lists */
-  li, .recipe-body ol li {
-    break-inside: avoid;
+  /* Typography */
+  .recipe {
+    max-width: 100% !important;
   }
 
-  ul, ol {
-    break-inside: avoid-column;
+  .recipe-body {
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
   }
 
   h2 {
+    font-size: 13pt !important;
+    font-weight: 700 !important;
+    border-bottom: 0.5pt solid #ccc !important;
     break-after: avoid;
+  }
+
+  li {
+    break-inside: avoid;
+  }
+
+  /* Hide diff decorations in print */
+  .diff-removed,
+  .diff-annotation {
+    display: none !important;
+  }
+
+  .diff-added,
+  .diff-modified {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  /* Print meal plan page */
+  .no-print { display: none !important; }
+  .calendar-table { font-size: 9pt !important; }
+  .calendar-table th { border-bottom: 1pt solid #999 !important; }
+  .calendar-table td { border-bottom: 0.5pt solid #ccc !important; }
+  .grocery-columns { column-count: 3 !important; column-gap: 1.5em !important; }
+  .grocery-item { font-size: 9pt !important; }
+  .grocery-checkbox { border-color: #666 !important; }
+  .recipe-page { break-before: page; }
+  .print-week-title { font-size: 16pt !important; }
+  .recipe-print-title { font-size: 15pt !important; }
+  .recipe-print-meta { font-size: 9pt !important; color: #666 !important; }
+
+  /* Show source URL as text */
+  .source-link::after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #666;
   }
 
   /* Show tags as comma text */

@@ -457,6 +457,15 @@
       <h1 class="no-hero-title">{displayTitle}</h1>
     {/if}
 
+    <div class="print-header">
+      <h1 class="print-title">{displayTitle}</h1>
+      <p class="print-meta">
+        {#if recipe.prep_time}Prep: {recipe.prep_time}{/if}
+        {#if recipe.cook_time}{#if recipe.prep_time} &middot; {/if}Cook: {recipe.cook_time}{/if}
+        {#if recipe.servings}{#if recipe.prep_time || recipe.cook_time} &middot; {/if}Serves: {currentServings ?? recipe.servings}{/if}
+      </p>
+    </div>
+
     <div class="action-bar">
       {#if recipe.forks.length > 0}
         <div class="version-selector">
@@ -520,15 +529,29 @@
           <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
         {/if}
         <a href="/fork/{recipe.slug}" class="fork-btn">Fork This Recipe</a>
-        <button class="print-btn" on:click={() => window.print()}>Print</button>
+        <button class="print-btn" on:click={() => window.print()} aria-label="Print recipe">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+          </button>
         {#if selectedFork}
-          <button class="history-btn" on:click={toggleHistory}>
-            {historyOpen ? 'Hide History' : 'History'}
+          <button class="history-btn" class:active={historyOpen} on:click={toggleHistory} aria-label="Fork history">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
           </button>
         {/if}
-        <button class="history-btn" on:click={toggleStream}>
-          {streamOpen ? 'Hide Stream' : 'Stream'}
-        </button>
+        <button class="stream-btn" class:active={streamOpen} on:click={toggleStream} aria-label="Recipe stream">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="6" y1="3" x2="6" y2="15" />
+              <circle cx="18" cy="6" r="3" />
+              <circle cx="6" cy="18" r="3" />
+              <path d="M18 9a9 9 0 0 1-9 9" />
+            </svg>
+          </button>
       </div>
     </div>
 
@@ -964,23 +987,80 @@
     text-decoration: none;
   }
 
-  .print-btn,
-  .history-btn {
-    display: inline-block;
-    padding: 0.4rem 1rem;
+  .print-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    font-size: 0.85rem;
     color: var(--color-text-muted);
     background: var(--color-surface);
     cursor: pointer;
     transition: all 0.15s;
   }
 
-  .print-btn:hover,
+  .print-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .stream-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .stream-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .stream-btn.active {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
+
+  .history-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
   .history-btn:hover {
     border-color: var(--color-accent);
     color: var(--color-accent);
+  }
+
+  .history-btn.active {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
+
+  .print-header {
+    display: none;
   }
 
   .history-panel {

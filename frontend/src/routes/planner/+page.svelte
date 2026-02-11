@@ -18,6 +18,7 @@
   let saving = false;
   let allRecipes: RecipeSummary[] = [];
   let initialized = false;
+  let currentIsoWeek = '';
 
   const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -57,6 +58,7 @@
   async function loadWeek() {
     loading = true;
     const { isoWeek, dates } = getWeekDates(weekOffset);
+    currentIsoWeek = isoWeek;
     try {
       const data = await getMealPlan(isoWeek);
       days = dates.map((date, i) => ({
@@ -190,6 +192,10 @@
         <button class="grocery-btn" on:click={addAllToGrocery} disabled={addingToGrocery}>
           {addingToGrocery ? 'Adding...' : 'Add all to grocery list'}
         </button>
+        <a href="/planner/print?week={currentIsoWeek}" class="print-plan-btn"
+           aria-label="Print meal plan" target="_blank">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </a>
       {/if}
     </div>
   </div>
@@ -268,6 +274,27 @@
     cursor: default;
   }
 
+  .print-plan-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+
+  .print-plan-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
   .planner-header h1 {
     font-size: 1.5rem;
     font-weight: 700;
@@ -310,12 +337,13 @@
 
   .week-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 0.75rem;
   }
 
   .day-column {
     min-height: 200px;
+    min-width: 0;
   }
 
   .day-header {
@@ -352,6 +380,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     font-size: 0.8rem;
+    min-width: 0;
   }
 
   .meal-link {
