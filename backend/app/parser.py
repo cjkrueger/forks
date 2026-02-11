@@ -62,6 +62,7 @@ def parse_frontmatter(path: Path) -> RecipeSummary:
         image=meta.get("image"),
         cook_history=_parse_cook_history(meta),
         likes=int(meta.get("likes", 0)),
+        version=int(meta.get("version", 0)),
         changelog=_parse_changelog(meta),
     )
 
@@ -93,6 +94,7 @@ def parse_recipe(path: Path) -> Recipe:
         image=meta.get("image"),
         cook_history=_parse_cook_history(meta),
         likes=int(meta.get("likes", 0)),
+        version=int(meta.get("version", 0)),
         changelog=_parse_changelog(meta),
         content=content,
     )
@@ -118,5 +120,6 @@ def parse_fork_frontmatter(path: Path) -> ForkSummary:
         date_added=str(meta.get("date_added")) if meta.get("date_added") else None,
         merged_at=str(meta.get("merged_at")) if meta.get("merged_at") else None,
         forked_at_commit=meta.get("forked_at_commit"),
+        version=int(meta.get("version", 0)),
         changelog=_parse_changelog(meta),
     )

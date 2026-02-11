@@ -16,6 +16,7 @@ class ForkSummary(BaseModel):
     date_added: Optional[str] = None
     merged_at: Optional[str] = None
     forked_at_commit: Optional[str] = None
+    version: int = 0
     changelog: List[ChangelogEntry] = []
 
 
@@ -38,6 +39,7 @@ class RecipeSummary(BaseModel):
     forks: List[ForkSummary] = []
     cook_history: List[CookHistoryEntry] = []
     likes: int = 0
+    version: int = 0
     changelog: List[ChangelogEntry] = []
 
 
@@ -62,6 +64,7 @@ class ForkInput(BaseModel):
     ingredients: List[str] = []
     instructions: List[str] = []
     notes: List[str] = []
+    version: Optional[int] = None
 
 
 class SyncStatus(BaseModel):

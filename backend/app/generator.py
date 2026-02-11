@@ -18,6 +18,7 @@ class RecipeInput(BaseModel):
     ingredients: List[str] = []
     instructions: List[str] = []
     notes: List[str] = []
+    version: Optional[int] = None
 
 
 def slugify(title: str) -> str:

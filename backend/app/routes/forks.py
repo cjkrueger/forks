@@ -83,9 +83,10 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         )
         path.write_text(md)
 
-        # Append changelog entry
+        # Append changelog entry and set initial version
         fork_post = frontmatter.load(path)
         append_changelog_entry(fork_post, "created", "Forked from original")
+        fork_post.metadata["version"] = 1
         path.write_text(frontmatter.dumps(fork_post))
 
         git_commit(recipes_dir, path, f"Create fork: {data.fork_name} ({slug})")
@@ -104,6 +105,14 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         old_fork_post = frontmatter.load(path)
         old_fork_content = old_fork_post.content
         old_changelog = old_fork_post.metadata.get("changelog", [])
+
+        # Optimistic locking: reject stale writes
+        old_version = int(old_fork_post.metadata.get("version", 0))
+        if data.version is not None and data.version != old_version:
+            raise HTTPException(
+                status_code=409,
+                detail="Fork was modified by another user. Please reload and try again.",
+            )
 
         base_post = frontmatter.load(base_path)
         changed = diff_sections(
@@ -132,6 +141,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             summary = "Edited metadata"
         new_fork_post.metadata["changelog"] = old_changelog
         append_changelog_entry(new_fork_post, "edited", summary)
+        new_fork_post.metadata["version"] = old_version + 1
         path.write_text(frontmatter.dumps(new_fork_post))
 
         git_commit(recipes_dir, path, f"Update fork: {data.fork_name} ({slug})")

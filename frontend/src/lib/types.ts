@@ -10,6 +10,7 @@ export interface ForkSummary {
   date_added: string | null;
   merged_at: string | null;
   forked_at_commit: string | null;
+  version: number;
 }
 
 export interface RecipeSummary {
@@ -26,6 +27,7 @@ export interface RecipeSummary {
   forks: ForkSummary[];
   cook_history: CookHistoryEntry[];
   likes: number;
+  version: number;
 }
 
 export interface Recipe extends RecipeSummary {
@@ -49,6 +51,7 @@ export interface ForkInput {
   ingredients: string[];
   instructions: string[];
   notes: string[];
+  version?: number;
 }
 
 export interface ScrapeResponse {
@@ -78,6 +81,7 @@ export interface RecipeInput {
   ingredients: string[];
   instructions: string[];
   notes: string[];
+  version?: number;
 }
 
 export interface MealSlot {

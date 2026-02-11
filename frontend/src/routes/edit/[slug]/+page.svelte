@@ -17,6 +17,8 @@
 
   let forkName = '';
   let author = '';
+  let recipeVersion: number = 0;
+  let forkVersion: number = 0;
 
   $: slug = $page.params.slug as string;
   $: forkParam = $page.url.searchParams.get('fork');
@@ -25,8 +27,10 @@
   onMount(async () => {
     try {
       recipe = await getRecipe(slug);
+      recipeVersion = recipe.version ?? 0;
       if (forkParam && recipe) {
         forkDetail = await getFork(slug, forkParam);
+        forkVersion = (forkDetail as any).version ?? 0;
         forkName = forkDetail.fork_name;
         author = forkDetail.author || '';
       }
@@ -101,15 +105,21 @@
           fork_name: forkName.trim(),
           author: author.trim() || null,
           ...data,
+          version: forkVersion,
         };
         await updateFork(slug, forkParam, forkData);
         goto(`/recipe/${slug}?fork=${forkParam}`);
       } else {
-        await updateRecipe(slug, data);
+        await updateRecipe(slug, { ...data, version: recipeVersion });
         goto(`/recipe/${slug}`);
       }
     } catch (e: any) {
-      saveError = e.message || 'Failed to save';
+      const msg = e.message || 'Failed to save';
+      if (msg.includes('modified by another user')) {
+        saveError = 'This recipe was updated by someone else. Please reload the page to see the latest version, then re-apply your changes.';
+      } else {
+        saveError = msg;
+      }
       saving = false;
     }
   }

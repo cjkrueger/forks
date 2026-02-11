@@ -87,9 +87,10 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         markdown = generate_markdown(recipe_data)
         filepath.write_text(markdown)
 
-        # Append changelog entry
+        # Append changelog entry and set initial version
         post = frontmatter.load(filepath)
         append_changelog_entry(post, "created", "Created")
+        post.metadata["version"] = 1
         filepath.write_text(frontmatter.dumps(post))
 
         commit_paths = [filepath]
@@ -116,6 +117,14 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         # Read old content before overwriting
         old_post = frontmatter.load(filepath)
         old_content = old_post.content
+
+        # Optimistic locking: reject stale writes
+        old_version = int(old_post.metadata.get("version", 0))
+        if data.version is not None and data.version != old_version:
+            raise HTTPException(
+                status_code=409,
+                detail="Recipe was modified by another user. Please reload and try again.",
+            )
 
         # Handle image
         image_field = None
@@ -148,6 +157,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         # Carry forward existing changelog from the old post
         new_post.metadata["changelog"] = old_post.metadata.get("changelog", [])
         append_changelog_entry(new_post, "edited", summary)
+        new_post.metadata["version"] = old_version + 1
         filepath.write_text(frontmatter.dumps(new_post))
 
         commit_paths = [filepath]

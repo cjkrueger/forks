@@ -53,6 +53,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         history.insert(0, new_entry)
 
         post.metadata["cook_history"] = history
+        post.metadata["version"] = int(post.metadata.get("version", 0)) + 1
         _save(path, post)
         git_commit(recipes_dir, path, f"Log cook: {slug}")
         return {"cook_history": history}
@@ -69,6 +70,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         history.pop(entry_index)
         post.metadata["cook_history"] = history
+        post.metadata["version"] = int(post.metadata.get("version", 0)) + 1
         _save(path, post)
         git_commit(recipes_dir, path, f"Delete cook entry: {slug}")
         return {"cook_history": history}
@@ -83,6 +85,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         if "favorite" not in tags:
             tags.append("favorite")
             post.metadata["tags"] = tags
+            post.metadata["version"] = int(post.metadata.get("version", 0)) + 1
             _save(path, post)
             git_commit(recipes_dir, path, f"Favorite: {slug}")
 
@@ -98,6 +101,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         if "favorite" in tags:
             tags = [t for t in tags if t != "favorite"]
             post.metadata["tags"] = tags
+            post.metadata["version"] = int(post.metadata.get("version", 0)) + 1
             _save(path, post)
             git_commit(recipes_dir, path, f"Unfavorite: {slug}")
 
@@ -109,6 +113,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         current = int(post.metadata.get("likes", 0))
         current += 1
         post.metadata["likes"] = current
+        post.metadata["version"] = int(post.metadata.get("version", 0)) + 1
         _save(path, post)
         git_commit(recipes_dir, path, f"Like: {slug}")
         return {"likes": current}
