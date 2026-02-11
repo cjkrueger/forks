@@ -451,6 +451,9 @@
         <div class="hero-overlay">
           <div class="hero-content">
             <h1 class="hero-title">{displayTitle}</h1>
+            {#if recipe.author}
+              <p class="hero-author">by {recipe.author}</p>
+            {/if}
             <div class="hero-meta">
               {#if recipe.prep_time}<span>Prep: {recipe.prep_time}</span>{/if}
               {#if recipe.cook_time}<span>Cook: {recipe.cook_time}</span>{/if}
@@ -461,6 +464,9 @@
       </div>
     {:else}
       <h1 class="no-hero-title">{displayTitle}</h1>
+      {#if recipe.author}
+        <p class="recipe-author">by {recipe.author}</p>
+      {/if}
     {/if}
 
     <div class="print-header">
@@ -664,10 +670,6 @@
             </a>
           {/if}
 
-          {#if recipe.author}
-            <p class="recipe-author">by {recipe.author}</p>
-          {/if}
-
           {#if selectedFork && forkDetail?.author}
             <p class="fork-author">by {forkDetail.author}</p>
           {/if}
@@ -750,6 +752,13 @@
     font-size: 2rem;
     font-weight: 700;
     margin: 0 0 0.5rem;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  .hero-author {
+    color: rgba(255,255,255,0.8);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
     text-shadow: 0 1px 4px rgba(0,0,0,0.3);
   }
 
@@ -1236,10 +1245,9 @@
   }
 
   .recipe-author {
-    font-size: 0.85rem;
+    font-size: 1rem;
     color: var(--color-text-muted);
-    font-style: italic;
-    margin-top: 0.25rem;
+    margin-bottom: 0.75rem;
   }
 
   .fork-author {

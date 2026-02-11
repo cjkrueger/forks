@@ -26,7 +26,7 @@
         <span class="meta-item">Cook: {recipe.cook_time}</span>
       {/if}
       {#if recipe.servings}
-        <span class="meta-item">Serves: {recipe.servings}</span>
+        <span class="meta-item">Serves: {recipe.servings.replace(/\s*servings?/i, '')}</span>
       {/if}
     </div>
     {#if recipe.tags.length > 0}
