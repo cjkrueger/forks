@@ -256,3 +256,25 @@ export async function unmergeFork(slug: string, forkName: string): Promise<{ unm
   }
   return res.json();
 }
+
+export async function failFork(slug: string, forkName: string, reason: string): Promise<{ failed: boolean }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/fail`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Fail failed' }));
+    throw new Error(err.detail || 'Fail failed');
+  }
+  return res.json();
+}
+
+export async function unfailFork(slug: string, forkName: string): Promise<{ unfailed: boolean }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/unfail`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Reactivate failed' }));
+    throw new Error(err.detail || 'Reactivate failed');
+  }
+  return res.json();
+}

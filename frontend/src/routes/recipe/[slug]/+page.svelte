@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory, mergeFork, unmergeFork, getRecipeStream } from '$lib/api';
+  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory, mergeFork, unmergeFork, failFork, unfailFork, getRecipeStream } from '$lib/api';
   import { renderMarkdown } from '$lib/markdown';
   import { mergeContent, getModifiedSections, parseSections } from '$lib/sections';
   import { parseIngredient, formatIngredient, formatQuantity } from '$lib/ingredients';
@@ -350,7 +350,11 @@
     merging = false;
   }
 
+  $: activeForks = recipe ? recipe.forks.filter(f => (!f.merged_at && !f.failed_at) || f.name === selectedFork) : [];
+
   $: selectedForkMerged = recipe?.forks.find(f => f.name === selectedFork)?.merged_at ?? null;
+  $: selectedForkFailed = recipe?.forks.find(f => f.name === selectedFork)?.failed_at ?? null;
+  $: selectedForkFailedReason = recipe?.forks.find(f => f.name === selectedFork)?.failed_reason ?? null;
 
   async function handleUnmergeFork() {
     if (!recipe || !selectedFork) return;
@@ -364,6 +368,39 @@
       mergeMessage = 'Fork unmerged — original restored';
     } catch (e: any) {
       mergeMessage = e.message || 'Unmerge failed';
+    }
+    merging = false;
+  }
+
+  async function handleFailFork() {
+    if (!recipe || !selectedFork) return;
+    const reason = prompt(`Why did "${forkDetail?.fork_name}" fail?`);
+    if (!reason) return;
+    merging = true;
+    mergeMessage = '';
+    try {
+      await failFork(recipe.slug, selectedFork, reason);
+      recipe = await getRecipe(slug);
+      if (selectedFork) await selectFork(selectedFork);
+      mergeMessage = 'Fork marked as failed';
+    } catch (e: any) {
+      mergeMessage = e.message || 'Failed to mark fork';
+    }
+    merging = false;
+  }
+
+  async function handleUnfailFork() {
+    if (!recipe || !selectedFork) return;
+    if (!confirm(`Reactivate "${forkDetail?.fork_name}"?`)) return;
+    merging = true;
+    mergeMessage = '';
+    try {
+      await unfailFork(recipe.slug, selectedFork);
+      recipe = await getRecipe(slug);
+      if (selectedFork) await selectFork(selectedFork);
+      mergeMessage = 'Fork reactivated';
+    } catch (e: any) {
+      mergeMessage = e.message || 'Reactivate failed';
     }
     merging = false;
   }
@@ -479,7 +516,7 @@
     </div>
 
     <div class="action-bar">
-      {#if recipe.forks.length > 0}
+      {#if activeForks.length > 0}
         <div class="version-row">
           <div class="version-selector">
             <button
@@ -489,16 +526,20 @@
             >
               Original
             </button>
-            {#each recipe.forks as fork}
+            {#each activeForks as fork}
               <button
                 class="version-pill"
                 class:active={selectedFork === fork.name}
                 class:merged={fork.merged_at != null}
+                class:failed={fork.failed_at != null}
                 on:click={() => selectFork(fork.name)}
               >
                 {fork.fork_name}
                 {#if fork.merged_at}
                   <span class="merged-badge">Merged</span>
+                {/if}
+                {#if fork.failed_at}
+                  <span class="failed-badge">Failed</span>
                 {/if}
               </button>
             {/each}
@@ -515,9 +556,16 @@
               <button class="merge-btn unmerge" on:click={handleUnmergeFork} disabled={merging}>
                 {merging ? 'Unmerging...' : 'Unmerge'}
               </button>
+            {:else if selectedForkFailed}
+              <button class="merge-btn unmerge" on:click={handleUnfailFork} disabled={merging}>
+                {merging ? 'Reactivating...' : 'Reactivate'}
+              </button>
             {:else}
               <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
                 {merging ? 'Merging...' : 'Merge into Original'}
+              </button>
+              <button class="merge-btn fail" on:click={handleFailFork} disabled={merging}>
+                Mark as Failed
               </button>
             {/if}
           </div>
@@ -1232,13 +1280,33 @@
     margin-top: 0.5rem;
   }
 
-  .version-pill.merged {
+  .version-pill.merged,
+  .version-pill.failed {
     opacity: 0.7;
+  }
+
+  .merge-btn.fail {
+    border-color: var(--color-danger, #c0392b);
+    color: var(--color-danger, #c0392b);
+  }
+
+  .merge-btn.fail:hover {
+    background: var(--color-danger, #c0392b);
+    color: white;
   }
 
   .merged-badge {
     font-size: 0.65rem;
     background: var(--color-tag);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-left: 0.25rem;
+  }
+
+  .failed-badge {
+    font-size: 0.65rem;
+    background: var(--color-danger-light, #fdecea);
+    color: var(--color-danger, #c0392b);
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
     margin-left: 0.25rem;

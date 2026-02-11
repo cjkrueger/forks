@@ -2,6 +2,8 @@
   import type { RecipeSummary } from '$lib/types';
 
   export let recipe: RecipeSummary;
+
+  $: activeForkCount = recipe.forks ? recipe.forks.filter(f => !f.merged_at && !f.failed_at).length : 0;
 </script>
 
 <a href="/recipe/{recipe.slug}" class="card">
@@ -34,17 +36,17 @@
         {#each recipe.tags.slice(0, 4) as tag}
           <span class="tag">{tag}</span>
         {/each}
-        {#if recipe.forks && recipe.forks.length > 0}
-          <span class="tag fork-count">{recipe.forks.length} {recipe.forks.length === 1 ? 'fork' : 'forks'}</span>
+        {#if activeForkCount > 0}
+          <span class="tag fork-count">{activeForkCount} {activeForkCount === 1 ? 'fork' : 'forks'}</span>
         {/if}
         {#if recipe.likes > 0}
           <span class="card-likes">&hearts; {recipe.likes}</span>
         {/if}
       </div>
-    {:else if recipe.forks && recipe.forks.length > 0 || recipe.likes > 0}
+    {:else if activeForkCount > 0 || recipe.likes > 0}
       <div class="card-tags">
-        {#if recipe.forks && recipe.forks.length > 0}
-          <span class="tag fork-count">{recipe.forks.length} {recipe.forks.length === 1 ? 'fork' : 'forks'}</span>
+        {#if activeForkCount > 0}
+          <span class="tag fork-count">{activeForkCount} {activeForkCount === 1 ? 'fork' : 'forks'}</span>
         {/if}
         {#if recipe.likes > 0}
           <span class="card-likes">&hearts; {recipe.likes}</span>

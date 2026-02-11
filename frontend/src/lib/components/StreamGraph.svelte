@@ -27,6 +27,8 @@
       case 'forked': return 'var(--color-secondary)';
       case 'merged': return 'var(--color-success)';
       case 'unmerged': return 'var(--color-danger)';
+      case 'failed': return 'var(--color-danger)';
+      case 'unfailed': return 'var(--color-accent)';
       default: return 'var(--color-border)';
     }
   }
@@ -100,6 +102,10 @@
 
     // Node column: split line around dot
     if (isNodeCol) {
+      // Failed: branch terminates — line above only
+      if (node.event.type === 'failed' && col > 0) return 'above';
+      // Unfailed: branch reopens — line below only
+      if (node.event.type === 'unfailed' && col > 0) return 'below';
       const showAbove = rowIdx > 0 && (col === 0 || node.event.type !== 'forked');
       const showBelow = rowIdx < totalRows - 1;
       if (showAbove && showBelow) return 'split';
@@ -177,7 +183,7 @@
         {:else}
           <span class="stream-message">
             {row.node.event.message}
-            {#if row.node.event.type === 'forked' && row.node.event.fork_slug && onForkClick}
+            {#if (row.node.event.type === 'forked' || row.node.event.type === 'failed' || row.node.event.type === 'unfailed') && row.node.event.fork_slug && onForkClick}
               <button class="stream-fork-link" on:click={() => onForkClick && row.node.event.fork_slug && onForkClick(row.node.event.fork_slug)}>
                 view &rarr;
               </button>

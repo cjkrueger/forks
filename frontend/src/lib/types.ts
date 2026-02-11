@@ -9,6 +9,8 @@ export interface ForkSummary {
   author: string | null;
   date_added: string | null;
   merged_at: string | null;
+  failed_at: string | null;
+  failed_reason: string | null;
   forked_at_commit: string | null;
   version: number;
 }
@@ -102,7 +104,7 @@ export interface SyncStatus {
 }
 
 export interface StreamEvent {
-  type: 'created' | 'edited' | 'forked' | 'merged' | 'unmerged';
+  type: 'created' | 'edited' | 'forked' | 'merged' | 'unmerged' | 'failed' | 'unfailed';
   date: string;
   message: string;
   commit: string | null;

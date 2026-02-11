@@ -10,6 +10,9 @@
   };
 
   let savedProvider: string | null = null;
+  const providerLabels: Record<string, string> = {
+    github: 'GitHub', gitlab: 'GitLab', tangled: 'Tangled', generic: 'Git', local: 'Local',
+  };
   let intervalMinutes = 90;
   let loading = true;
   let saving = false;
@@ -70,7 +73,8 @@
   }
 
   async function handleDisconnect() {
-    if (!confirm('Disconnect sync target? Local data will be kept.')) return;
+    const label = savedProvider ? providerLabels[savedProvider] ?? savedProvider : 'sync target';
+    if (!confirm(`Disconnect ${label}? Local data will be kept.`)) return;
     try {
       await disconnectRemote();
       settings = await getSettings();
@@ -276,16 +280,21 @@
             >
               {$isSyncing ? 'Syncing...' : 'Sync Now'}
             </button>
-            <button
-              type="button"
-              class="btn btn-danger"
-              on:click={handleDisconnect}
-            >
-              Disconnect
-            </button>
           {/if}
         </div>
       </form>
+
+      {#if $syncStatus.connected}
+        <div class="disconnect-section">
+          <button
+            type="button"
+            class="btn btn-danger"
+            on:click={handleDisconnect}
+          >
+            Disconnect {savedProvider ? providerLabels[savedProvider] ?? savedProvider : ''}
+          </button>
+        </div>
+      {/if}
 
       {#if message}
         <p class="message" class:error={messageType === 'error'} class:success={messageType === 'success'}>
@@ -579,6 +588,12 @@
 
   .btn-danger:hover:not(:disabled) {
     opacity: 0.85;
+  }
+
+  .disconnect-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
   }
 
   .message {

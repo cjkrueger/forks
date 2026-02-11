@@ -119,6 +119,8 @@ def parse_fork_frontmatter(path: Path) -> ForkSummary:
         author=meta.get("author"),
         date_added=str(meta.get("date_added")) if meta.get("date_added") else None,
         merged_at=str(meta.get("merged_at")) if meta.get("merged_at") else None,
+        failed_at=str(meta.get("failed_at")) if meta.get("failed_at") else None,
+        failed_reason=meta.get("failed_reason"),
         forked_at_commit=meta.get("forked_at_commit"),
         version=int(meta.get("version", 0)),
         changelog=_parse_changelog(meta),

@@ -6,10 +6,12 @@ import frontmatter
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from app.changelog import append_changelog_entry
+from app.changelog import append_changelog_entry, remove_changelog_entries_for_fork
 from app.generator import slugify
 from app.git import git_commit, git_find_commit, git_head_hash, git_log, git_rm, git_show
 from app.index import RecipeIndex
+from pydantic import BaseModel
+
 from app.models import ForkDetail, ForkInput
 from app.sections import (
     detect_changed_sections,
@@ -20,6 +22,10 @@ from app.sections import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class FailForkRequest(BaseModel):
+    reason: str
 
 
 def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
@@ -155,8 +161,22 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         if not path.exists():
             raise HTTPException(status_code=404, detail="Fork not found")
 
+        # Load fork to get display name before deleting
+        fork_post = frontmatter.load(path)
+        fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
+
+        # Clean base recipe changelog
+        base_path = _load_base(slug)
+        base_post = frontmatter.load(base_path)
+        remove_changelog_entries_for_fork(base_post, fork_name)
+        base_path.write_text(frontmatter.dumps(base_post))
+
+        # Delete fork file
         path.unlink()
-        git_commit(recipes_dir, path, f"Delete fork: {fork_name_slug} ({slug})")
+
+        # Commit both changes together
+        git_commit(recipes_dir, [base_path, path], f"Delete fork: {fork_name_slug} ({slug})")
+        index.add_or_update(base_path)
         index.remove(f"{slug}.fork.{fork_name_slug}")
 
     @router.get("/{fork_name_slug}/export")
@@ -301,5 +321,52 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         index.add_or_update(fork_path)
 
         return {"unmerged": True, "fork_name": fork_name_slug}
+
+    @router.post("/{fork_name_slug}/fail")
+    def fail_fork(slug: str, fork_name_slug: str, data: FailForkRequest):
+        """Mark a fork as failed with a reason."""
+        fork_path = _fork_path(slug, fork_name_slug)
+        if not fork_path.exists():
+            raise HTTPException(status_code=404, detail="Fork not found")
+
+        fork_post = frontmatter.load(fork_path)
+        if fork_post.metadata.get("failed_at"):
+            raise HTTPException(status_code=400, detail="Fork is already marked as failed")
+
+        fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
+
+        fork_post.metadata["failed_at"] = datetime.date.today().isoformat()
+        fork_post.metadata["failed_reason"] = data.reason
+        append_changelog_entry(fork_post, "failed", f"Marked as failed: {data.reason}")
+        fork_path.write_text(frontmatter.dumps(fork_post))
+
+        git_commit(recipes_dir, fork_path, f"Mark fork '{fork_name}' as failed ({slug})")
+        index.add_or_update(fork_path)
+
+        return {"failed": True, "fork_name": fork_name_slug}
+
+    @router.post("/{fork_name_slug}/unfail")
+    def unfail_fork(slug: str, fork_name_slug: str):
+        """Reactivate a previously failed fork."""
+        fork_path = _fork_path(slug, fork_name_slug)
+        if not fork_path.exists():
+            raise HTTPException(status_code=404, detail="Fork not found")
+
+        fork_post = frontmatter.load(fork_path)
+        if not fork_post.metadata.get("failed_at"):
+            raise HTTPException(status_code=400, detail="Fork is not failed")
+
+        fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
+
+        del fork_post.metadata["failed_at"]
+        if "failed_reason" in fork_post.metadata:
+            del fork_post.metadata["failed_reason"]
+        append_changelog_entry(fork_post, "unfailed", f"Reactivated fork '{fork_name}'")
+        fork_path.write_text(frontmatter.dumps(fork_post))
+
+        git_commit(recipes_dir, fork_path, f"Reactivate fork '{fork_name}' ({slug})")
+        index.add_or_update(fork_path)
+
+        return {"unfailed": True, "fork_name": fork_name_slug}
 
     return router

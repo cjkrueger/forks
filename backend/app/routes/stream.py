@@ -36,13 +36,17 @@ def create_stream_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
                 date=entry.date,
                 message=entry.summary,
             )
-            # Enrich merge/unmerge events with structured fork info
+            # Enrich merge/unmerge events with structured fork info;
+            # skip events for forks that no longer exist (deleted)
             if entry.action in ("merged", "unmerged"):
                 m = _FORK_NAME_RE.search(entry.summary)
                 if m:
                     fname = m.group(1)
+                    slug = fork_slug_lookup.get(fname)
+                    if slug is None:
+                        continue
                     ev.fork_name = fname
-                    ev.fork_slug = fork_slug_lookup.get(fname)
+                    ev.fork_slug = slug
             events.append(ev)
 
         # Build events from fork changelogs

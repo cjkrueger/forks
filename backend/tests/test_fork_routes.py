@@ -268,6 +268,29 @@ class TestDeleteFork:
         resp = client.delete("/api/recipes/chocolate-cookies/forks/nonexistent")
         assert resp.status_code == 404
 
+    def test_delete_fork_cleans_base_changelog(self, client, tmp_recipes):
+        """Deleting a fork removes its merge/unmerge entries from the base changelog."""
+        # Create and merge a fork
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+
+        # Verify base has a merge changelog entry
+        base_path = tmp_recipes / "chocolate-cookies.md"
+        import frontmatter
+        base_post = frontmatter.load(base_path)
+        actions = [e["action"] for e in base_post.metadata.get("changelog", [])]
+        assert "merged" in actions
+
+        # Delete the fork
+        resp = client.delete("/api/recipes/chocolate-cookies/forks/vegan-version")
+        assert resp.status_code == 204
+
+        # Base changelog should no longer have merge entries for that fork
+        base_post = frontmatter.load(base_path)
+        for entry in base_post.metadata.get("changelog", []):
+            if entry["action"] in ("merged", "unmerged"):
+                assert "Vegan Version" not in entry.get("summary", "")
+
     def test_delete_fork_removes_from_index(self, client):
         client.post(
             "/api/recipes/chocolate-cookies/forks",
@@ -408,3 +431,72 @@ class TestUnmergeFork:
         """Unmerging a non-existent fork should return 404."""
         resp = client.post("/api/recipes/chocolate-cookies/forks/nonexistent/unmerge")
         assert resp.status_code == 404
+
+
+class TestFailFork:
+    def test_fail_fork(self, client):
+        """Mark a fork as failed — should return 200 with response shape."""
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        resp = client.post(
+            "/api/recipes/chocolate-cookies/forks/vegan-version/fail",
+            json={"reason": "Overpowered the other flavors"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["failed"] is True
+
+    def test_fail_sets_failed_at_and_reason(self, client, tmp_recipes):
+        """After failing, fork frontmatter should contain failed_at and failed_reason."""
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post(
+            "/api/recipes/chocolate-cookies/forks/vegan-version/fail",
+            json={"reason": "Too salty"},
+        )
+        fork_content = (tmp_recipes / "chocolate-cookies.fork.vegan-version.md").read_text()
+        assert "failed_at:" in fork_content
+        assert "Too salty" in fork_content
+
+    def test_fail_already_failed_returns_400(self, client):
+        """Failing a fork that is already failed should return 400."""
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post(
+            "/api/recipes/chocolate-cookies/forks/vegan-version/fail",
+            json={"reason": "First attempt"},
+        )
+        resp = client.post(
+            "/api/recipes/chocolate-cookies/forks/vegan-version/fail",
+            json={"reason": "Second attempt"},
+        )
+        assert resp.status_code == 400
+        assert "already" in resp.json()["detail"].lower()
+
+    def test_unfail_fork(self, client):
+        """Unfailing a failed fork should return 200."""
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post(
+            "/api/recipes/chocolate-cookies/forks/vegan-version/fail",
+            json={"reason": "Bad texture"},
+        )
+        resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/unfail")
+        assert resp.status_code == 200
+        assert resp.json()["unfailed"] is True
+
+    def test_unfail_clears_failed_at(self, client, tmp_recipes):
+        """After unfailing, fork frontmatter should not have failed_at."""
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post(
+            "/api/recipes/chocolate-cookies/forks/vegan-version/fail",
+            json={"reason": "Bad texture"},
+        )
+        fork_path = tmp_recipes / "chocolate-cookies.fork.vegan-version.md"
+        assert "failed_at:" in fork_path.read_text()
+
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/unfail")
+        assert "failed_at:" not in fork_path.read_text()
+        assert "failed_reason:" not in fork_path.read_text()
+
+    def test_unfail_not_failed_returns_400(self, client):
+        """Unfailing a fork that is not failed should return 400."""
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/unfail")
+        assert resp.status_code == 400
+        assert "not failed" in resp.json()["detail"].lower()

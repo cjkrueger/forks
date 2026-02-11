@@ -131,6 +131,39 @@ export function buildGraph(events: StreamEvent[]): GraphRow[] {
 				},
 				activeBranches: new Set(active)
 			});
+		} else if (ev.type === 'failed' && ev.fork_slug) {
+			// Failed event — place on fork column, close branch
+			const col = branchColumns.get(ev.fork_slug) ?? 0;
+			flushPendingEdits(ev.fork_slug);
+			active.delete(col);
+
+			rows.push({
+				node: {
+					id: `node-${nodeIdx++}`,
+					event: ev,
+					column: col,
+					branchId: ev.fork_slug,
+					branchLabel: null,
+					connectors: []
+				},
+				activeBranches: new Set(active)
+			});
+		} else if (ev.type === 'unfailed' && ev.fork_slug) {
+			// Unfailed event — place on fork column, reopen branch
+			const col = branchColumns.get(ev.fork_slug) ?? 0;
+			active.add(col);
+
+			rows.push({
+				node: {
+					id: `node-${nodeIdx++}`,
+					event: ev,
+					column: col,
+					branchId: ev.fork_slug,
+					branchLabel: null,
+					connectors: []
+				},
+				activeBranches: new Set(active)
+			});
 		} else if (ev.type === 'unmerged') {
 			// Unmerge event (always column 0) — reopen the branch
 			const unmergedSlug = ev.fork_slug ?? findForkSlugByName(ev, branchColumns, branchLabels);

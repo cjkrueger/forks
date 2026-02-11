@@ -15,6 +15,8 @@ class ForkSummary(BaseModel):
     author: Optional[str] = None
     date_added: Optional[str] = None
     merged_at: Optional[str] = None
+    failed_at: Optional[str] = None
+    failed_reason: Optional[str] = None
     forked_at_commit: Optional[str] = None
     version: int = 0
     changelog: List[ChangelogEntry] = []
@@ -76,7 +78,7 @@ class SyncStatus(BaseModel):
 
 
 class StreamEvent(BaseModel):
-    type: str  # "created", "edited", "forked", "merged", "unmerged"
+    type: str  # "created", "edited", "forked", "merged", "unmerged", "failed", "unfailed"
     date: str
     message: str
     commit: Optional[str] = None
