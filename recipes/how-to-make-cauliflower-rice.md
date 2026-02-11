@@ -6,6 +6,12 @@ changelog:
 - action: edited
   date: '2026-02-10'
   summary: Edited metadata
+- action: unmerged
+  date: '2026-02-11T05:30:14.712701+00:00'
+  summary: Unmerged fork 'Cauliflower Rice - With Maple Syrup'
+- action: merged
+  date: '2026-02-11T05:30:40.751570+00:00'
+  summary: Merged fork 'Broccoli Rice with Maple Syrup'
 date_added: 2026-02-10
 image: images/how-to-make-cauliflower-rice.png
 prep_time: 15min
@@ -16,13 +22,14 @@ tags:
 - quick
 - rice
 title: Cauliflower Rice
+version: 4
 ---
 
 # Cauliflower Rice
 
 ## Ingredients
 
-- 1 large head cauliflower, cut into florets
+- 1 large head broccoli, cut into florets
 - 2 tbsp. extra-virgin olive oil
 - 2 tbsp. freshly chopped parsley
 - 1 tbsp. freshly chopped rosemary

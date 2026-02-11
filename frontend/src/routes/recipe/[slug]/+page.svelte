@@ -12,7 +12,6 @@
   import CookMode from '$lib/components/CookMode.svelte';
   import CookHistory from '$lib/components/CookHistory.svelte';
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
-  import LikeButton from '$lib/components/LikeButton.svelte';
   import ServingScaler from '$lib/components/ServingScaler.svelte';
   import StreamGraph from '$lib/components/StreamGraph.svelte';
 
@@ -388,6 +387,17 @@
     streamOpen = false;
   }
 
+  function exportOriginal() {
+    if (!recipe) return;
+    const blob = new Blob([displayContent], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${recipe.slug}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function getIngredientLines(content: string, scale: number): string[] {
     const sections = parseSections(content);
     for (const section of sections) {
@@ -447,10 +457,6 @@
               {#if recipe.servings}<span>Serves: {currentServings ?? recipe.servings}</span>{/if}
             </div>
           </div>
-          <div class="hero-actions">
-            <FavoriteButton slug={recipe.slug} tags={recipe.tags} />
-            <LikeButton likes={recipe.likes} />
-          </div>
         </div>
       </div>
     {:else}
@@ -468,83 +474,93 @@
 
     <div class="action-bar">
       {#if recipe.forks.length > 0}
-        <div class="version-selector">
-          <button
-            class="version-pill"
-            class:active={selectedFork === null}
-            on:click={() => selectFork(null)}
-          >
-            Original
-          </button>
-          {#each recipe.forks as fork}
+        <div class="version-row">
+          <div class="version-selector">
             <button
               class="version-pill"
-              class:active={selectedFork === fork.name}
-              class:merged={fork.merged_at != null}
-              on:click={() => selectFork(fork.name)}
+              class:active={selectedFork === null}
+              on:click={() => selectFork(null)}
             >
-              {fork.fork_name}
-              {#if fork.merged_at}
-                <span class="merged-badge">Merged</span>
-              {/if}
+              Original
             </button>
-          {/each}
+            {#each recipe.forks as fork}
+              <button
+                class="version-pill"
+                class:active={selectedFork === fork.name}
+                class:merged={fork.merged_at != null}
+                on:click={() => selectFork(fork.name)}
+              >
+                {fork.fork_name}
+                {#if fork.merged_at}
+                  <span class="merged-badge">Merged</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+          {#if !isDefault}
+            <button class="set-default-link" on:click={setAsDefault}>
+              Set as my default
+            </button>
+          {/if}
         </div>
-        {#if !isDefault}
-          <button class="set-default-link" on:click={setAsDefault}>
-            Set as my default
-          </button>
+        {#if selectedFork}
+          <div class="fork-actions">
+            {#if selectedForkMerged}
+              <button class="merge-btn unmerge" on:click={handleUnmergeFork} disabled={merging}>
+                {merging ? 'Unmerging...' : 'Unmerge'}
+              </button>
+            {:else}
+              <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
+                {merging ? 'Merging...' : 'Merge into Original'}
+              </button>
+            {/if}
+          </div>
         {/if}
       {/if}
 
       <div class="recipe-actions">
         <button class="cook-btn" on:click={enterCookMode}>Start Cooking</button>
-        {#if onGroceryList}
-          <button class="grocery-btn on-list" on:click={() => { if (recipe) removeRecipeFromGrocery(recipe.slug); }}>
-            On Grocery List
-          </button>
-        {:else}
-          <button class="grocery-btn" on:click={() => {
-            if (recipe) {
-              const lines = getIngredientLines(displayContent, scaleFactor);
-              addRecipeToGrocery(recipe.slug, displayTitle, lines, selectedFork, currentServings ? String(currentServings) : recipe.servings);
-            }
-          }}>
-            Add to Grocery List
-          </button>
-        {/if}
         {#if selectedFork}
           <a href="/edit/{recipe.slug}?fork={selectedFork}" class="edit-btn">Edit Fork</a>
-          <a href={exportForkUrl(recipe.slug, selectedFork)} class="edit-btn" download>Export</a>
-          {#if selectedForkMerged}
-            <button class="merge-btn unmerge" on:click={handleUnmergeFork} disabled={merging}>
-              {merging ? 'Unmerging...' : 'Unmerge'}
-            </button>
-          {:else}
-            <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
-              {merging ? 'Merging...' : 'Merge into Original'}
-            </button>
-          {/if}
         {:else}
           <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
         {/if}
         <a href="/fork/{recipe.slug}" class="fork-btn">Fork This Recipe</a>
-        <button class="print-btn" on:click={() => window.print()} aria-label="Print recipe">
+        <div class="action-icons">
+          {#if onGroceryList}
+            <button class="grocery-icon-btn on-list" on:click={() => { if (recipe) removeRecipeFromGrocery(recipe.slug); }} aria-label="Remove from grocery list">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+            </button>
+          {:else}
+            <button class="grocery-icon-btn" on:click={() => {
+              if (recipe) {
+                const lines = getIngredientLines(displayContent, scaleFactor);
+                addRecipeToGrocery(recipe.slug, displayTitle, lines, selectedFork, currentServings ? String(currentServings) : recipe.servings);
+              }
+            }} aria-label="Add to grocery list">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+            </button>
+          {/if}
+          <button class="print-btn" on:click={() => window.print()} aria-label="Print recipe">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 6 2 18 2 18 9" />
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
             </svg>
           </button>
-        {#if selectedFork}
-          <button class="history-btn" class:active={historyOpen} on:click={toggleHistory} aria-label="Fork history">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </button>
-        {/if}
-        <button class="stream-btn" class:active={streamOpen} on:click={toggleStream} aria-label="Recipe stream">
+          {#if selectedFork}
+            <button class="history-btn" class:active={historyOpen} on:click={toggleHistory} aria-label="Fork history">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </button>
+          {/if}
+          <button class="stream-btn" class:active={streamOpen} on:click={toggleStream} aria-label="Recipe stream">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="6" y1="3" x2="6" y2="15" />
               <circle cx="18" cy="6" r="3" />
@@ -552,6 +568,8 @@
               <path d="M18 9a9 9 0 0 1-9 9" />
             </svg>
           </button>
+          <FavoriteButton slug={recipe.slug} tags={recipe.tags} />
+        </div>
       </div>
     </div>
 
@@ -628,9 +646,9 @@
             {/if}
           </div>
 
-          {#if recipe.cook_history && recipe.cook_history.length > 0}
-            <CookHistory slug={recipe.slug} cookHistory={recipe.cook_history} />
-          {/if}
+          <div class="recipe-body sidebar-ingredients">
+            {@html ingredientsHtml}
+          </div>
 
           {#if recipe.tags.length > 0}
             <div class="tags">
@@ -654,9 +672,19 @@
             <p class="fork-author">by {forkDetail.author}</p>
           {/if}
 
-          <div class="recipe-body sidebar-ingredients">
-            {@html ingredientsHtml}
-          </div>
+          {#if recipe.cook_history && recipe.cook_history.length > 0}
+            <CookHistory slug={recipe.slug} cookHistory={recipe.cook_history} />
+          {/if}
+
+          {#if selectedFork}
+            <a href={exportForkUrl(recipe.slug, selectedFork)} class="export-btn" download>
+              Export Recipe
+            </a>
+          {:else}
+            <button class="export-btn" on:click={exportOriginal}>
+              Export Recipe
+            </button>
+          {/if}
         </aside>
 
         <div class="recipe-main">
@@ -732,28 +760,6 @@
     font-size: 0.9rem;
   }
 
-  .hero-actions {
-    display: flex;
-    gap: 0.5rem;
-    align-self: flex-start;
-    padding-top: 1rem;
-  }
-
-  /* Override button colors in hero for visibility */
-  .hero-actions :global(.like-btn),
-  .hero-actions :global(.favorite-btn) {
-    color: rgba(255,255,255,0.85);
-  }
-
-  .hero-actions :global(.like-btn:hover),
-  .hero-actions :global(.favorite-btn:hover) {
-    color: white;
-  }
-
-  .hero-actions :global(.favorite-btn.active) {
-    color: white;
-  }
-
   .no-hero-title {
     font-size: 2rem;
     font-weight: 700;
@@ -822,12 +828,35 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    margin-top: 1rem;
+    margin-bottom: 1rem;
   }
 
-  .sidebar-ingredients :global(h2) {
+  .sidebar-ingredients:global(.recipe-body) :global(h2) {
     margin-top: 0;
     font-size: 1.1rem;
+  }
+
+  .export-btn {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    font-family: var(--font-body);
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .export-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    text-decoration: none;
   }
 
   .recipe-main {
@@ -838,10 +867,24 @@
     margin-top: 0;
   }
 
+  .version-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+
   .version-selector {
     display: flex;
     gap: 0.4rem;
     flex-wrap: wrap;
+  }
+
+  .fork-actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
     margin-bottom: 0.5rem;
   }
 
@@ -874,7 +917,6 @@
     font-size: 0.8rem;
     cursor: pointer;
     padding: 0;
-    margin-bottom: 0.5rem;
   }
 
   .set-default-link:hover {
@@ -911,8 +953,16 @@
 
   .recipe-actions {
     display: flex;
+    align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
+  }
+
+  .action-icons {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    margin-left: auto;
   }
 
   .cook-btn {
@@ -948,26 +998,30 @@
     text-decoration: none;
   }
 
-  .grocery-btn {
-    display: inline-block;
-    padding: 0.4rem 1rem;
+  .grocery-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    font-size: 0.85rem;
     color: var(--color-text-muted);
     background: var(--color-surface);
     cursor: pointer;
     transition: all 0.15s;
   }
 
-  .grocery-btn:hover {
+  .grocery-icon-btn:hover {
     border-color: var(--color-accent);
     color: var(--color-accent);
   }
 
-  .grocery-btn.on-list {
+  .grocery-icon-btn.on-list {
     border-color: var(--color-accent);
     color: var(--color-accent);
+    background: var(--color-accent-light);
   }
 
   .fork-btn {

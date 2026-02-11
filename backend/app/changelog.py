@@ -15,7 +15,7 @@ def append_changelog_entry(post, action: str, summary: str) -> None:
     if not isinstance(changelog, list):
         changelog = []
     changelog.append({
-        "date": datetime.date.today().isoformat(),
+        "date": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "action": action,
         "summary": summary,
     })

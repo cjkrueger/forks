@@ -76,7 +76,7 @@ class SyncStatus(BaseModel):
 
 
 class StreamEvent(BaseModel):
-    type: str  # "created", "edited", "forked", "merged"
+    type: str  # "created", "edited", "forked", "merged", "unmerged"
     date: str
     message: str
     commit: Optional[str] = None

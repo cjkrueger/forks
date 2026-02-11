@@ -159,6 +159,28 @@ class TestStreamEndpoint:
         assert fork_edits[0]["message"] == "Swapped spaghetti for rigatoni"
 
     def test_includes_merged_events(self, tmp_recipes):
+        # Add a merged changelog entry to the base recipe (canonical source)
+        base = tmp_recipes / "pasta-carbonara.md"
+        base.write_text(textwrap.dedent("""\
+            ---
+            title: Pasta Carbonara
+            tags: [italian]
+            date_added: 2026-02-01
+            changelog:
+              - date: "2026-02-01"
+                action: created
+                summary: "Created Pasta Carbonara"
+              - date: "2026-02-08"
+                action: merged
+                summary: "Merged fork 'Mom's Version'"
+            ---
+
+            # Pasta Carbonara
+
+            ## Ingredients
+
+            - 400g spaghetti
+        """))
         fork = tmp_recipes / "pasta-carbonara.fork.moms-version.md"
         fork.write_text(textwrap.dedent("""\
             ---

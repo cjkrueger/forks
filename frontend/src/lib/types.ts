@@ -102,7 +102,7 @@ export interface SyncStatus {
 }
 
 export interface StreamEvent {
-  type: 'created' | 'edited' | 'forked' | 'merged';
+  type: 'created' | 'edited' | 'forked' | 'merged' | 'unmerged';
   date: string;
   message: string;
   commit: string | null;

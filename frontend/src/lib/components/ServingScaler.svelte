@@ -19,16 +19,24 @@
   $: isDefault = currentServings === originalServings;
 </script>
 
-<span class="scaler">
-  <button class="scale-btn" on:click={decrease} aria-label="Decrease servings">&minus;</button>
-  <span class="scale-value">{currentServings}</span>
-  <button class="scale-btn" on:click={increase} aria-label="Increase servings">&plus;</button>
+<span class="scaler-wrap">
+  <span class="scaler">
+    <button class="scale-btn" on:click={decrease} aria-label="Decrease servings">&minus;</button>
+    <span class="scale-value">{currentServings}</span>
+    <button class="scale-btn" on:click={increase} aria-label="Increase servings">&plus;</button>
+  </span>
   {#if !isDefault}
     <button class="reset-link" on:click={() => dispatch('change', { servings: originalServings })}>reset</button>
   {/if}
 </span>
 
 <style>
+  .scaler-wrap {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
   .scaler {
     display: inline-flex;
     align-items: center;
@@ -69,7 +77,6 @@
     font-size: 0.75rem;
     cursor: pointer;
     padding: 0;
-    margin-left: 0.25rem;
   }
 
   .reset-link:hover {

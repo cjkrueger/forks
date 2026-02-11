@@ -13,10 +13,14 @@ changelog:
 - action: unmerged
   date: '2026-02-10'
   summary: Unmerged from chicken-pot-pie
+- action: merged
+  date: '2026-02-10'
+  summary: Merged into chicken-pot-pie
 date_added: 2026-02-09
 fork_name: Spicy Cajun
 forked_at_commit: 2ad3723
 forked_from: chicken-pot-pie
+merged_at: '2026-02-10'
 ---
 
 ## Ingredients

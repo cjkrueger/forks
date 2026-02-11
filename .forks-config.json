@@ -2,10 +2,12 @@
   "remote": {
     "provider": "github",
     "url": "https://github.com/cjkrueger/recipes.git",
-    "token": "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"
+    "token": "***",
+    "local_path": null
   },
   "sync": {
     "enabled": true,
-    "interval_seconds": 90
+    "interval_seconds": 5400,
+    "sync_meal_plans": true
   }
 }

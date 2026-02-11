@@ -407,7 +407,7 @@
 
   .layout {
     display: flex;
-    overflow: hidden;
+    overflow: clip;
   }
 
   .sidebar {
@@ -435,7 +435,7 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--color-text-muted);
-    margin-bottom: 0.75rem;
+    margin: 0 0 0.75rem;
     font-weight: 600;
   }
 

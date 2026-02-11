@@ -65,7 +65,7 @@
     { value: 'quick', label: 'Quick meals' },
     { value: 'never-cooked', label: 'Never tried' },
     { value: 'least-recent', label: 'Least recent' },
-    { value: 'most-loved', label: 'Most loved' },
+    { value: 'favorites', label: 'Favorites' },
   ];
 
   function toggleTag(tag: string) {
@@ -106,10 +106,10 @@
     try {
       if (q) {
         recipes = await searchRecipes(q);
-      } else if (s === 'most-loved') {
-        const tagList = t ? t.split(',').filter(Boolean) : undefined;
-        const all = tagList ? await listRecipes(tagList) : await listRecipes();
-        recipes = all.filter(r => r.likes > 0).sort((a, b) => b.likes - a.likes);
+      } else if (s === 'favorites') {
+        const tagList = t ? t.split(',').filter(Boolean) : [];
+        if (!tagList.includes('favorite')) tagList.push('favorite');
+        recipes = await listRecipes(tagList);
       } else if (s) {
         const tagList = t ? t.split(',').filter(Boolean) : undefined;
         recipes = await listRecipesWithSort(s, tagList);
@@ -134,7 +134,7 @@
     { label: 'Never tried', sort: 'never-cooked' },
     { label: 'Cook again', sort: 'least-recent' },
     { label: 'Quick meals', sort: 'quick' },
-    { label: 'Most loved', sort: 'most-loved' },
+    { label: 'Favorites', sort: 'favorites' },
   ];
 
   async function handleChip(chip: typeof discoveryChips[0]) {
@@ -265,8 +265,8 @@
         No cook history yet. Start cooking to see suggestions here.
       {:else if sort === 'quick'}
         No quick recipes found (under 30 min).
-      {:else if sort === 'most-loved'}
-        No liked recipes yet. Start liking recipes to see them here.
+      {:else if sort === 'favorites'}
+        No favorites yet. Favorite a recipe to see it here.
       {:else}
         No recipes found.
       {/if}
