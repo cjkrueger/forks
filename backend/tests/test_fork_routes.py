@@ -363,3 +363,48 @@ class TestMergeFork:
         resp = client.get("/api/recipes/chocolate-cookies")
         fork = resp.json()["forks"][0]
         assert fork["merged_at"] is not None
+
+
+class TestUnmergeFork:
+    def test_unmerge_restores_base(self, client, tmp_recipes):
+        """Merge then unmerge — base recipe should revert to original content."""
+        base_path = tmp_recipes / "chocolate-cookies.md"
+        original_content = base_path.read_text()
+
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+        # Verify merge changed the base
+        assert "coconut oil" in base_path.read_text()
+
+        resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/unmerge")
+        assert resp.status_code == 200
+        assert resp.json()["unmerged"] is True
+
+        # Base should no longer contain fork content
+        restored = base_path.read_text()
+        assert "coconut oil" not in restored
+        # Original ingredients should be back
+        assert "1 cup butter" in restored
+
+    def test_unmerge_clears_merged_at(self, client, tmp_recipes):
+        """After unmerge, fork frontmatter should not have merged_at."""
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/merge")
+
+        fork_path = tmp_recipes / "chocolate-cookies.fork.vegan-version.md"
+        assert "merged_at:" in fork_path.read_text()
+
+        client.post("/api/recipes/chocolate-cookies/forks/vegan-version/unmerge")
+        assert "merged_at:" not in fork_path.read_text()
+
+    def test_unmerge_not_merged_returns_400(self, client):
+        """Unmerging a fork that was never merged should return 400."""
+        client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
+        resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/unmerge")
+        assert resp.status_code == 400
+        assert "not merged" in resp.json()["detail"]
+
+    def test_unmerge_fork_not_found(self, client):
+        """Unmerging a non-existent fork should return 404."""
+        resp = client.post("/api/recipes/chocolate-cookies/forks/nonexistent/unmerge")
+        assert resp.status_code == 404

@@ -2,6 +2,7 @@ import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,33 @@ def git_log(recipes_dir: Path, path: Path, max_entries: int = 20):
     except Exception:
         logger.exception("Git log failed for %s", path)
         return []
+
+
+def git_find_commit(recipes_dir: Path, path: Path, message_substring: str) -> Optional[str]:
+    """Find the most recent commit whose message contains *message_substring* for *path*.
+
+    Returns the full commit hash, or ``None`` if no matching commit is found.
+    """
+    try:
+        rel = str(path.relative_to(recipes_dir))
+        result = subprocess.run(
+            [
+                "git", "log",
+                "--format=%H",
+                "-n", "1",
+                f"--grep={message_substring}",
+                "--", rel,
+            ],
+            cwd=str(recipes_dir),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        sha = result.stdout.strip()
+        return sha if sha else None
+    except Exception:
+        logger.exception("git_find_commit failed for %s", path)
+        return None
 
 
 def git_show(recipes_dir: Path, revision: str, path: Path) -> str:

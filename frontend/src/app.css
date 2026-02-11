@@ -142,11 +142,17 @@ textarea::placeholder {
     border-radius: 0 !important;
   }
 
-  /* Remove fork highlight borders */
-  .fork-modified {
+  /* Hide diff decorations in print */
+  .diff-removed,
+  .diff-annotation {
+    display: none !important;
+  }
+
+  .diff-added,
+  .diff-modified {
+    background: none !important;
     border-left: none !important;
     padding-left: 0 !important;
-    margin-left: 0 !important;
   }
 
   /* Layout resets */

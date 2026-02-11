@@ -8,7 +8,7 @@ from fastapi.responses import PlainTextResponse
 
 from app.changelog import append_changelog_entry
 from app.generator import slugify
-from app.git import git_commit, git_head_hash, git_log, git_rm, git_show
+from app.git import git_commit, git_find_commit, git_head_hash, git_log, git_rm, git_show
 from app.index import RecipeIndex
 from app.models import ForkDetail, ForkInput
 from app.sections import (
@@ -238,5 +238,58 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         index.add_or_update(fork_path)
 
         return {"merged": True, "fork_name": fork_name_slug}
+
+    @router.post("/{fork_name_slug}/unmerge")
+    def unmerge_fork(slug: str, fork_name_slug: str):
+        """Undo a previous merge by restoring the base recipe from git history."""
+        base_path = _load_base(slug)
+        fork_path = _fork_path(slug, fork_name_slug)
+        if not fork_path.exists():
+            raise HTTPException(status_code=404, detail="Fork not found")
+
+        fork_post = frontmatter.load(fork_path)
+        if not fork_post.metadata.get("merged_at"):
+            raise HTTPException(status_code=400, detail="Fork is not merged")
+
+        fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
+
+        # Find the merge commit for the base recipe
+        merge_commit = git_find_commit(
+            recipes_dir, base_path, f"Merge fork '{fork_name}' into {slug}"
+        )
+        if not merge_commit:
+            raise HTTPException(
+                status_code=409,
+                detail="Merge commit not found in history",
+            )
+
+        # Restore base content from the parent of the merge commit
+        pre_merge_content = git_show(recipes_dir, f"{merge_commit}~1", base_path)
+        if not pre_merge_content:
+            raise HTTPException(
+                status_code=409,
+                detail="Could not retrieve pre-merge content",
+            )
+
+        # Parse the restored content and write it back
+        base_post = frontmatter.loads(pre_merge_content)
+        append_changelog_entry(base_post, "unmerged", f"Unmerged fork '{fork_name}'")
+        base_path.write_text(frontmatter.dumps(base_post))
+
+        # Clear merged_at on the fork
+        del fork_post.metadata["merged_at"]
+        append_changelog_entry(fork_post, "unmerged", f"Unmerged from {slug}")
+        fork_path.write_text(frontmatter.dumps(fork_post))
+
+        # Commit and re-index both files
+        git_commit(
+            recipes_dir,
+            [base_path, fork_path],
+            f"Unmerge fork '{fork_name}' from {slug}",
+        )
+        index.add_or_update(base_path)
+        index.add_or_update(fork_path)
+
+        return {"unmerged": True, "fork_name": fork_name_slug}
 
     return router

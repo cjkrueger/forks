@@ -1,4 +1,8 @@
 ---
+changelog:
+- action: unmerged
+  date: '2026-02-10'
+  summary: Unmerged fork 'Spicy Cajun'
 cook_history: []
 cook_time: 50min
 date_added: 2026-02-10

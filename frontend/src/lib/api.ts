@@ -247,3 +247,12 @@ export async function mergeFork(slug: string, forkName: string): Promise<{ merge
   }
   return res.json();
 }
+
+export async function unmergeFork(slug: string, forkName: string): Promise<{ unmerged: boolean }> {
+  const res = await fetch(`${BASE}/recipes/${slug}/forks/${forkName}/unmerge`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unmerge failed' }));
+    throw new Error(err.detail || 'Unmerge failed');
+  }
+  return res.json();
+}

@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory, mergeFork, getRecipeStream } from '$lib/api';
+  import { getRecipe, getFork, exportForkUrl, addCookHistory, getForkHistory, mergeFork, unmergeFork, getRecipeStream } from '$lib/api';
   import { renderMarkdown } from '$lib/markdown';
   import { mergeContent, getModifiedSections, parseSections } from '$lib/sections';
-  import { parseIngredient, formatIngredient } from '$lib/ingredients';
+  import { parseIngredient, formatIngredient, formatQuantity } from '$lib/ingredients';
+  import { computeSectionDiffs } from '$lib/diff';
+  import type { SectionDiff, LineDiff } from '$lib/diff';
   import { groceryStore, addRecipeToGrocery, removeRecipeFromGrocery } from '$lib/grocery';
   import type { Recipe, ForkDetail, StreamEvent } from '$lib/types';
   import CookMode from '$lib/components/CookMode.svelte';
@@ -119,44 +121,76 @@
 
   $: displayTitle = forkDetail ? forkDetail.fork_name : recipe?.title ?? '';
 
-  function renderWithHighlights(content: string, modified: Set<string>, scale: number): string {
-    if (modified.size === 0 && scale === 1) return renderMarkdown(content);
+  $: sectionDiffs = recipe && forkDetail
+    ? computeSectionDiffs(recipe.content, forkDetail.content)
+    : new Map<string, SectionDiff>();
 
-    const sections = parseSections(content);
-    let html = '';
-    for (const section of sections) {
-      let sectionContent = section.content;
+  function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
-      // Scale ingredient quantities
-      if (section.name.toLowerCase() === 'ingredients' && scale !== 1) {
-        sectionContent = sectionContent.split('\n').map(line => {
-          if (line.trim().startsWith('- ')) {
-            const parsed = parseIngredient(line.trim());
-            return `- ${formatIngredient(parsed, scale)}`;
-          }
-          return line;
-        }).join('\n');
-      }
-
-      if (section.name === '_preamble') {
-        html += renderMarkdown(sectionContent);
+  function renderIngredientsWithDiff(diff: SectionDiff, scale: number): string {
+    let html = '<h2>Ingredients</h2>\n<ul>\n';
+    for (const line of diff.lines) {
+      if (line.status === 'removed') {
+        const text = line.baseLine!.replace(/^-\s*/, '');
+        html += `<li class="diff-removed"><del>${escapeHtml(text)}</del></li>\n`;
+      } else if (line.status === 'added') {
+        const parsed = parseIngredient(line.forkLine!);
+        const text = scale !== 1 ? formatIngredient(parsed, scale) : line.forkLine!.replace(/^-\s*/, '');
+        html += `<li class="diff-added">${escapeHtml(text)}</li>\n`;
+      } else if (line.status === 'modified') {
+        const parsed = parseIngredient(line.forkLine!);
+        const text = scale !== 1 ? formatIngredient(parsed, scale) : line.forkLine!.replace(/^-\s*/, '');
+        const annotation = line.annotation ? ` <span class="diff-annotation">(${escapeHtml(line.annotation)})</span>` : '';
+        html += `<li class="diff-modified">${escapeHtml(text)}${annotation}</li>\n`;
       } else {
-        const isModified = modified.has(section.name);
-        const sectionMd = `## ${section.name}\n\n${sectionContent}`;
-        if (isModified) {
-          html += `<div class="fork-modified">${renderMarkdown(sectionMd)}</div>`;
-        } else {
-          html += renderMarkdown(sectionMd);
-        }
+        const parsed = parseIngredient(line.forkLine!);
+        const text = scale !== 1 ? formatIngredient(parsed, scale) : line.forkLine!.replace(/^-\s*/, '');
+        html += `<li>${escapeHtml(text)}</li>\n`;
       }
     }
+    html += '</ul>\n';
     return html;
   }
 
-  $: renderedBody = renderWithHighlights(displayContent, modifiedSections, scaleFactor);
+  function renderInstructionsWithDiff(diff: SectionDiff): string {
+    let html = '<h2>Instructions</h2>\n<ol>\n';
+    let stepNum = 0;
+    for (const line of diff.lines) {
+      const text = (line.forkLine || line.baseLine || '').replace(/^\d+\.\s*/, '');
+      if (line.status === 'removed') {
+        html += `<li class="diff-removed diff-unnumbered"><del>${escapeHtml(text)}</del></li>\n`;
+      } else {
+        stepNum++;
+        const cls = line.status === 'added' ? ' class="diff-added"' : line.status === 'modified' ? ' class="diff-modified"' : '';
+        html += `<li value="${stepNum}"${cls}>${escapeHtml(text)}</li>\n`;
+      }
+    }
+    html += '</ol>\n';
+    return html;
+  }
+
+  function renderNotesWithDiff(diff: SectionDiff): string {
+    let html = '<h2>Notes</h2>\n<ul>\n';
+    for (const line of diff.lines) {
+      const text = (line.forkLine || line.baseLine || '').replace(/^-\s*/, '');
+      if (line.status === 'removed') {
+        html += `<li class="diff-removed"><del>${escapeHtml(text)}</del></li>\n`;
+      } else if (line.status === 'added') {
+        html += `<li class="diff-added">${escapeHtml(text)}</li>\n`;
+      } else if (line.status === 'modified') {
+        html += `<li class="diff-modified">${escapeHtml(text)}</li>\n`;
+      } else {
+        html += `<li>${escapeHtml(text)}</li>\n`;
+      }
+    }
+    html += '</ul>\n';
+    return html;
+  }
 
   // Split rendering for two-column layout: ingredients in sidebar, rest in main
-  function renderFiltered(content: string, modified: Set<string>, scale: number, include: string[] | null): string {
+  function renderFiltered(content: string, modified: Set<string>, scale: number, include: string[] | null, diffs: Map<string, SectionDiff>): string {
     const sections = parseSections(content);
     let html = '';
     for (const section of sections) {
@@ -167,6 +201,37 @@
       } else {
         if (name === 'ingredients') continue;
       }
+
+      // Use diff rendering if available for this section
+      const diff = diffs.get(section.name);
+      if (diff && diff.hasChanges) {
+        if (name === 'ingredients') {
+          html += renderIngredientsWithDiff(diff, scale);
+        } else if (name === 'instructions') {
+          html += renderInstructionsWithDiff(diff);
+        } else if (name === 'notes') {
+          html += renderNotesWithDiff(diff);
+        } else {
+          // Generic section: use positional diff with unordered list
+          let sectionHtml = `<h2>${escapeHtml(section.name)}</h2>\n<ul>\n`;
+          for (const line of diff.lines) {
+            const text = (line.forkLine || line.baseLine || '').replace(/^-\s*/, '').replace(/^\d+\.\s*/, '');
+            if (line.status === 'removed') {
+              sectionHtml += `<li class="diff-removed"><del>${escapeHtml(text)}</del></li>\n`;
+            } else if (line.status === 'added') {
+              sectionHtml += `<li class="diff-added">${escapeHtml(text)}</li>\n`;
+            } else if (line.status === 'modified') {
+              sectionHtml += `<li class="diff-modified">${escapeHtml(text)}</li>\n`;
+            } else {
+              sectionHtml += `<li>${escapeHtml(text)}</li>\n`;
+            }
+          }
+          sectionHtml += '</ul>\n';
+          html += sectionHtml;
+        }
+        continue;
+      }
+
       let sectionContent = section.content;
       if (name === 'ingredients' && scale !== 1) {
         sectionContent = sectionContent.split('\n').map(line => {
@@ -177,19 +242,14 @@
           return line;
         }).join('\n');
       }
-      const isModified = modified.has(section.name);
       const sectionMd = `## ${section.name}\n\n${sectionContent}`;
-      if (isModified) {
-        html += `<div class="fork-modified">${renderMarkdown(sectionMd)}</div>`;
-      } else {
-        html += renderMarkdown(sectionMd);
-      }
+      html += renderMarkdown(sectionMd);
     }
     return html;
   }
 
-  $: ingredientsHtml = renderFiltered(displayContent, modifiedSections, scaleFactor, ['ingredients']);
-  $: mainBodyHtml = renderFiltered(displayContent, modifiedSections, scaleFactor, null);
+  $: ingredientsHtml = renderFiltered(displayContent, modifiedSections, scaleFactor, ['ingredients'], sectionDiffs);
+  $: mainBodyHtml = renderFiltered(displayContent, modifiedSections, scaleFactor, null, sectionDiffs);
 
   let isDefault = true;
   $: {
@@ -202,7 +262,7 @@
   }
 
   // Cook mode helpers
-  function parseCookData(content: string) {
+  function parseCookData(content: string, scale: number) {
     const sections = parseSections(content);
     let ingredients: string[] = [];
     let steps: string[] = [];
@@ -213,7 +273,13 @@
         ingredients = section.content.split('\n')
           .map(l => l.trim())
           .filter(l => l.startsWith('- '))
-          .map(l => l.replace(/^-\s*/, ''));
+          .map(l => {
+            if (scale !== 1) {
+              const parsed = parseIngredient(l);
+              return formatIngredient(parsed, scale);
+            }
+            return l.replace(/^-\s*/, '');
+          });
       } else if (section.name.toLowerCase() === 'instructions') {
         steps = section.content.split('\n')
           .map(l => l.trim())
@@ -250,7 +316,7 @@
     window.history.replaceState({}, '', url.toString());
   }
 
-  $: cookData = parseCookData(displayContent);
+  $: cookData = parseCookData(displayContent, scaleFactor);
 
   async function toggleHistory() {
     if (historyOpen) {
@@ -285,6 +351,24 @@
     merging = false;
   }
 
+  $: selectedForkMerged = recipe?.forks.find(f => f.name === selectedFork)?.merged_at ?? null;
+
+  async function handleUnmergeFork() {
+    if (!recipe || !selectedFork) return;
+    if (!confirm(`Undo merge of "${forkDetail?.fork_name}" and restore the original recipe?`)) return;
+    merging = true;
+    mergeMessage = '';
+    try {
+      await unmergeFork(recipe.slug, selectedFork);
+      recipe = await getRecipe(slug);
+      if (selectedFork) await selectFork(selectedFork);
+      mergeMessage = 'Fork unmerged — original restored';
+    } catch (e: any) {
+      mergeMessage = e.message || 'Unmerge failed';
+    }
+    merging = false;
+  }
+
   async function toggleStream() {
     if (streamOpen) { streamOpen = false; return; }
     if (!recipe) return;
@@ -304,14 +388,20 @@
     streamOpen = false;
   }
 
-  function getIngredientLines(content: string): string[] {
+  function getIngredientLines(content: string, scale: number): string[] {
     const sections = parseSections(content);
     for (const section of sections) {
       if (section.name.toLowerCase() === 'ingredients') {
         return section.content.split('\n')
           .map(l => l.trim())
           .filter(l => l.startsWith('- '))
-          .map(l => l.replace(/^-\s*/, ''));
+          .map(l => {
+            if (scale !== 1) {
+              const parsed = parseIngredient(l);
+              return formatIngredient(parsed, scale);
+            }
+            return l.replace(/^-\s*/, '');
+          });
       }
     }
     return [];
@@ -407,7 +497,7 @@
         {:else}
           <button class="grocery-btn" on:click={() => {
             if (recipe) {
-              const lines = getIngredientLines(displayContent);
+              const lines = getIngredientLines(displayContent, scaleFactor);
               addRecipeToGrocery(recipe.slug, displayTitle, lines, selectedFork, currentServings ? String(currentServings) : recipe.servings);
             }
           }}>
@@ -417,9 +507,15 @@
         {#if selectedFork}
           <a href="/edit/{recipe.slug}?fork={selectedFork}" class="edit-btn">Edit Fork</a>
           <a href={exportForkUrl(recipe.slug, selectedFork)} class="edit-btn" download>Export</a>
-          <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
-            {merging ? 'Merging...' : 'Merge into Original'}
-          </button>
+          {#if selectedForkMerged}
+            <button class="merge-btn unmerge" on:click={handleUnmergeFork} disabled={merging}>
+              {merging ? 'Unmerging...' : 'Unmerge'}
+            </button>
+          {:else}
+            <button class="merge-btn" on:click={handleMergeFork} disabled={merging}>
+              {merging ? 'Merging...' : 'Merge into Original'}
+            </button>
+          {/if}
         {:else}
           <a href="/edit/{recipe.slug}" class="edit-btn">Edit Recipe</a>
         {/if}
@@ -972,6 +1068,16 @@
     color: white;
   }
 
+  .merge-btn.unmerge {
+    border-color: var(--color-danger, #c0392b);
+    color: var(--color-danger, #c0392b);
+  }
+
+  .merge-btn.unmerge:hover {
+    background: var(--color-danger, #c0392b);
+    color: white;
+  }
+
   .merge-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1046,11 +1152,34 @@
     padding-left: 0.25rem;
   }
 
-  .recipe-body :global(.fork-modified) {
+  .recipe-body :global(.diff-added) {
+    background: var(--color-success-light);
+    border-left: 3px solid var(--color-success);
+    padding-left: 0.5rem;
+  }
+
+  .recipe-body :global(.diff-removed) {
+    background: var(--color-danger-light);
+    border-left: 3px solid var(--color-danger);
+    padding-left: 0.5rem;
+    color: var(--color-text-muted);
+  }
+
+  .recipe-body :global(.diff-modified) {
+    background: var(--color-accent-light);
     border-left: 3px solid var(--color-accent);
-    padding-left: 1rem;
-    margin-left: -1rem;
-    border-radius: 0 var(--radius) var(--radius) 0;
+    padding-left: 0.5rem;
+  }
+
+  .recipe-body :global(.diff-unnumbered) {
+    list-style: none;
+  }
+
+  .recipe-body :global(.diff-annotation) {
+    font-style: italic;
+    font-size: 0.85em;
+    color: var(--color-text-muted);
+    margin-left: 0.25rem;
   }
 
   .loading, .error {
