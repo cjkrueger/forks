@@ -1,5 +1,6 @@
 services:
   forks:
+    image: ghcr.io/cjkrueger/forks:latest
     build: .
     ports:
       - "8420:8000"
