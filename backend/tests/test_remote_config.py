@@ -81,7 +81,7 @@ class TestLoadConfig:
         assert remote.token is None
         # sync should be defaults since it's missing
         assert sync.enabled is False
-        assert sync.interval_seconds == 90
+        assert sync.interval_seconds == 5400
 
     def test_returns_defaults_on_corrupt_file(self, tmp_path):
         config_path = tmp_path / ".forks-config.json"

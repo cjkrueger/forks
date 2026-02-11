@@ -136,8 +136,8 @@ export function parseIngredient(line: string): ParsedIngredient {
   const displayText = rest.trim();
 
   // name: stripped of prep words for grocery aggregation
-  const strippedRest = rest.replace(PREP_WORDS, '').trim();
-  const name = strippedRest.toLowerCase() || original.toLowerCase();
+  const strippedRest = rest.replace(PREP_WORDS, '').replace(/[\s,\-–—]+$/, '').trim();
+  const name = strippedRest.toLowerCase() || displayText.toLowerCase();
 
   return { quantity, unit, name, displayText, original };
 }

@@ -168,6 +168,25 @@ def git_show(recipes_dir: Path, revision: str, path: Path) -> str:
         return ""
 
 
+def git_init_bare(path: Path) -> None:
+    """Initialize a bare git repo at *path* if one doesn't already exist."""
+    if (path / "HEAD").exists():
+        logger.info("Bare repo already exists at %s", path)
+        return
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            ["git", "init", "--bare"],
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        logger.info("Initialized bare repo at %s", path)
+    except Exception:
+        logger.exception("Failed to initialize bare repo at %s", path)
+
+
 # ---------------------------------------------------------------------------
 # Remote operations – return success/failure for UI feedback
 # ---------------------------------------------------------------------------
@@ -263,7 +282,7 @@ def git_pull(recipes_dir: Path) -> PullResult:
         head_before = git_head_hash(recipes_dir)
 
         result = subprocess.run(
-            ["git", "pull", "origin"],
+            ["git", "pull", "--no-rebase", "origin"],
             cwd=str(recipes_dir),
             capture_output=True,
             text=True,

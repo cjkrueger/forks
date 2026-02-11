@@ -42,7 +42,11 @@ def create_settings_router(sync_engine: SyncEngine, recipes_dir: Path) -> APIRou
         remote = RemoteConfig(**body.get("remote", {}))
         sync = SyncConfig(**body.get("sync", {}))
         save_config(config_path, remote, sync)
-        if remote.url:
+        if remote.provider == "local" and remote.local_path:
+            from app.git import git_init_bare, git_remote_add
+            git_init_bare(Path(remote.local_path))
+            git_remote_add(recipes_dir, remote.local_path)
+        elif remote.url:
             from app.git import git_remote_add
             git_remote_add(recipes_dir, remote.url)
         return {"saved": True}

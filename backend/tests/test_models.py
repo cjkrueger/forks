@@ -158,7 +158,7 @@ class TestSyncConfig:
     def test_defaults(self):
         sc = SyncConfig()
         assert sc.enabled is False
-        assert sc.interval_seconds == 90
+        assert sc.interval_seconds == 5400
 
     def test_custom_values(self):
         sc = SyncConfig(enabled=True, interval_seconds=300)

@@ -82,12 +82,13 @@ class StreamEvent(BaseModel):
 
 
 class RemoteConfig(BaseModel):
-    provider: Optional[str] = None  # "github", "gitlab", "generic"
+    provider: Optional[str] = None  # "github", "gitlab", "generic", "tangled", "local"
     url: Optional[str] = None
     token: Optional[str] = None
+    local_path: Optional[str] = None
 
 
 class SyncConfig(BaseModel):
     enabled: bool = False
-    interval_seconds: int = 90
+    interval_seconds: int = 5400
     sync_meal_plans: bool = True

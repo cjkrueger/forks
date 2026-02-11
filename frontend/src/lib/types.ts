@@ -114,6 +114,7 @@ export interface RemoteConfig {
   provider: string | null;
   url: string | null;
   token: string | null;
+  local_path: string | null;
 }
 
 export interface SyncConfig {
