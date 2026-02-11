@@ -100,7 +100,7 @@
           required
         />
         <button type="submit" class="scrape-btn" disabled={scraping || !scrapeUrl.trim()}>
-          {scraping ? 'Scraping...' : 'Scrape'}
+          {scraping ? 'Grabbing...' : 'Grab Recipe'}
         </button>
       </form>
       {#if scrapeError}
@@ -149,7 +149,8 @@
 
 <style>
   .add-page {
-    max-width: 720px;
+    max-width: 640px;
+    margin: 0 auto;
   }
 
   .back-link {

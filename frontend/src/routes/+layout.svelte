@@ -101,7 +101,6 @@
         <svg class="add-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
-        <span class="add-label">Add</span>
       </a>
       <a href="/planner" class="nav-link planner-link" aria-label="Meal planner">
         <svg class="planner-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -279,20 +278,22 @@
   .add-btn {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.5rem 1rem;
-    background: var(--color-accent);
-    color: white;
-    border-radius: var(--radius);
-    font-size: 0.85rem;
-    font-weight: 600;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-bg);
+    color: var(--color-text-muted);
     text-decoration: none;
-    white-space: nowrap;
-    transition: opacity 0.15s;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
   }
 
   .add-btn:hover {
-    opacity: 0.9;
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    background: var(--color-accent-light);
     text-decoration: none;
   }
 
@@ -315,25 +316,29 @@
   }
 
   .nav-link {
-    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-bg);
     color: var(--color-text-muted);
     text-decoration: none;
-    padding: 0.4rem 0.75rem;
-    border-radius: var(--radius);
-    transition: color 0.15s, background 0.15s;
-    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
   }
 
   .nav-link:hover {
     color: var(--color-accent);
+    border-color: var(--color-accent);
     background: var(--color-accent-light);
     text-decoration: none;
   }
 
   .grocery-link {
     position: relative;
-    display: flex;
-    align-items: center;
   }
 
   .grocery-badge {
@@ -485,20 +490,11 @@
     display: none;
   }
 
-  /* Tablet: collapse planner text to icon, shrink add button */
+  /* Tablet: tighten topbar spacing */
   @media (max-width: 900px) {
     .topbar {
       padding: 0.75rem 1.25rem;
       gap: 1rem;
-    }
-
-    .add-label {
-      display: none;
-    }
-
-    .add-btn {
-      padding: 0.5rem;
-      border-radius: 50%;
     }
   }
 
