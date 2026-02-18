@@ -7,27 +7,22 @@
   import RecipeCard from '$lib/components/RecipeCard.svelte';
   import RecipeTable from '$lib/components/RecipeTable.svelte';
   import ColumnPicker from '$lib/components/ColumnPicker.svelte';
+  import { safeLocalStorage } from '$lib/storage';
 
   let recipes: RecipeSummary[] = [];
   let loading = true;
 
-  let viewMode: string = (typeof localStorage !== 'undefined' && localStorage.getItem('viewMode')) || 'grid';
+  let viewMode: string = safeLocalStorage.getItem('viewMode') || 'grid';
   let visibleColumns: string[] = (() => {
-    if (typeof localStorage !== 'undefined') {
-      const stored = localStorage.getItem('tableColumns');
-      if (stored) {
-        try { return JSON.parse(stored); } catch { /* ignore */ }
-      }
+    const stored = safeLocalStorage.getItem('tableColumns');
+    if (stored) {
+      try { return JSON.parse(stored); } catch { /* ignore */ }
     }
     return ['title', 'tags', 'cook_time', 'likes', 'last_cooked'];
   })();
 
-  $: if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('viewMode', viewMode);
-  }
-  $: if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('tableColumns', JSON.stringify(visibleColumns));
-  }
+  $: safeLocalStorage.setItem('viewMode', viewMode);
+  $: safeLocalStorage.setItem('tableColumns', JSON.stringify(visibleColumns));
 
   const allColumns = [
     { key: 'title', label: 'Title' },
@@ -41,10 +36,8 @@
     { key: 'source', label: 'Source' },
   ];
 
-  let filterBarOpen = (typeof localStorage !== 'undefined' && localStorage.getItem('filterBarOpen') === 'true') || false;
-  $: if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('filterBarOpen', String(filterBarOpen));
-  }
+  let filterBarOpen = safeLocalStorage.getItem('filterBarOpen') === 'true';
+  $: safeLocalStorage.setItem('filterBarOpen', String(filterBarOpen));
 
   $: query = $page.url.searchParams.get('q') || '';
   $: tags = $page.url.searchParams.get('tags') || '';

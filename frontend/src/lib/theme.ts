@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { safeLocalStorage } from '$lib/storage';
 
 function getInitialTheme(): 'light' | 'dark' {
   if (browser) {
@@ -15,7 +16,7 @@ export function toggleTheme() {
     const next = t === 'light' ? 'dark' : 'light';
     if (browser) {
       document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('forks-theme', next);
+      safeLocalStorage.setItem('forks-theme', next);
     }
     return next;
   });

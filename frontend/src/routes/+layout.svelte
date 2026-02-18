@@ -6,6 +6,7 @@
   import { recipeCount } from '$lib/grocery';
   import { startSyncPolling, syncStatus, isConnected } from '$lib/sync';
   import { theme, toggleTheme } from '$lib/theme';
+  import { safeLocalStorage } from '$lib/storage';
   import { onMount } from 'svelte';
 
   let searchQuery = '';
@@ -16,7 +17,7 @@
   $: activeTags = $page.url.searchParams.get('tags')?.split(',').filter(Boolean) || [];
 
   onMount(async () => {
-    sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+    sidebarCollapsed = safeLocalStorage.getItem('sidebarCollapsed') === 'true';
     try {
       const settings = await getSettings();
       startSyncPolling(settings.sync.interval_seconds * 1000, settings.sync.enabled);
@@ -48,7 +49,7 @@
       sidebarOpen = !sidebarOpen;
     } else {
       sidebarCollapsed = !sidebarCollapsed;
-      localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+      safeLocalStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
     }
   }
 
