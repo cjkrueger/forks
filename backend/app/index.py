@@ -92,7 +92,7 @@ class RecipeIndex:
     def filter_by_tags(self, tags: List[str]) -> List[RecipeSummary]:
         results = [
             r for r in self._index.values()
-            if all(tag in r.tags for tag in tags)
+            if all(any(tag.lower() == t.lower() for t in r.tags) for tag in tags)
         ]
         return sorted(results, key=lambda r: r.title.lower())
 

@@ -124,14 +124,28 @@ def test_index_filter_by_tags(tmp_recipes):
     idx.build()
     results = idx.filter_by_tags(["mexican"])
     assert len(results) >= 1
-    assert all("mexican" in r.tags for r in results)
+    assert all(any(t.lower() == "mexican" for t in r.tags) for r in results)
 
 
 def test_index_filter_by_multiple_tags(tmp_recipes):
     idx = RecipeIndex(tmp_recipes)
     idx.build()
     results = idx.filter_by_tags(["mexican", "beef"])
-    assert all("mexican" in r.tags and "beef" in r.tags for r in results)
+    assert all(
+        any(t.lower() == "mexican" for t in r.tags)
+        and any(t.lower() == "beef" for t in r.tags)
+        for r in results
+    )
+
+
+def test_index_filter_by_tags_case_insensitive(tmp_recipes):
+    idx = RecipeIndex(tmp_recipes)
+    idx.build()
+    # Tags stored as "mexican" should match query "Mexican" (capital M)
+    results_lower = idx.filter_by_tags(["mexican"])
+    results_upper = idx.filter_by_tags(["Mexican"])
+    assert len(results_lower) == len(results_upper)
+    assert {r.slug for r in results_lower} == {r.slug for r in results_upper}
 
 
 def test_index_get_by_slug(tmp_recipes):
