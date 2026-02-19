@@ -49,12 +49,16 @@ def git_commit(recipes_dir: Path, path, message: str) -> None:
     """Stage file(s) and commit. Fire-and-forget: failures logged, never raised.
 
     path can be a single Path or a list of Paths.
+    Files that no longer exist on disk are staged with ``git rm`` instead of
+    ``git add`` so that deletions are properly recorded.
     """
     try:
         paths = path if isinstance(path, list) else [path]
         for p in paths:
+            rel = str(p.relative_to(recipes_dir))
+            cmd = ["git", "rm", rel] if not p.exists() else ["git", "add", rel]
             subprocess.run(
-                ["git", "add", str(p.relative_to(recipes_dir))],
+                cmd,
                 cwd=str(recipes_dir),
                 capture_output=True,
                 text=True,
