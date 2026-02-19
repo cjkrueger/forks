@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.git import git_commit
 from app.index import RecipeIndex
+from app.validation import validate_slug
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
     router = APIRouter(prefix="/api/recipes/{slug}")
 
     def _load_post(slug: str):
+        validate_slug(slug)
         path = recipes_dir / f"{slug}.md"
         if not path.exists():
             raise HTTPException(status_code=404, detail="Recipe not found")

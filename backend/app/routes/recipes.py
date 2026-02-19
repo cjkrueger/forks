@@ -7,6 +7,7 @@ from app.git import git_log, git_show
 from app.index import RecipeIndex
 from app.models import Recipe, RecipeSummary
 from app.sections import extract_structured_data
+from app.validation import validate_slug
 
 
 def create_recipe_router(index: RecipeIndex) -> APIRouter:
@@ -44,6 +45,7 @@ def create_recipe_router(index: RecipeIndex) -> APIRouter:
 
     @router.get("/recipes/{slug}", response_model=Recipe)
     def get_recipe(slug: str):
+        validate_slug(slug)
         recipe = index.get(slug)
         if recipe is None:
             raise HTTPException(status_code=404, detail="Recipe not found")
@@ -52,6 +54,7 @@ def create_recipe_router(index: RecipeIndex) -> APIRouter:
 
     @router.get("/recipes/{slug}/export")
     def export_recipe(slug: str):
+        validate_slug(slug)
         path = index.recipes_dir / f"{slug}.md"
         if not path.exists():
             raise HTTPException(status_code=404, detail="Recipe not found")
@@ -63,6 +66,7 @@ def create_recipe_router(index: RecipeIndex) -> APIRouter:
     @router.get("/recipes/{slug}/history")
     def recipe_history(slug: str):
         """Return git history for the base recipe with content at each version."""
+        validate_slug(slug)
         path = index.recipes_dir / f"{slug}.md"
         if not path.exists():
             raise HTTPException(status_code=404, detail="Recipe not found")
