@@ -3,9 +3,12 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
+from app.errors import http_exception_handler, validation_exception_handler
 from app.git import git_init_if_needed
 from app.index import RecipeIndex
 from app.remote_config import get_config_path
@@ -26,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
     app = FastAPI(title="Forks", version="0.1.0")
+
+    # Register global exception handlers to ensure all error responses use the
+    # standardized {"error": "...", "status": ...} format.
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
     recipes_path = recipes_dir or settings.recipes_dir
 
