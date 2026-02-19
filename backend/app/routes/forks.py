@@ -311,7 +311,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         base_path.write_text(frontmatter.dumps(base_post))
 
         # Clear merged_at on the fork
-        del fork_post.metadata["merged_at"]
+        fork_post.metadata.pop("merged_at", None)
         append_changelog_entry(fork_post, "unmerged", f"Unmerged from {slug}")
         fork_path.write_text(frontmatter.dumps(fork_post))
 
@@ -362,9 +362,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
 
-        del fork_post.metadata["failed_at"]
-        if "failed_reason" in fork_post.metadata:
-            del fork_post.metadata["failed_reason"]
+        fork_post.metadata.pop("failed_at", None)
+        fork_post.metadata.pop("failed_reason", None)
         append_changelog_entry(fork_post, "unfailed", f"Reactivated fork '{fork_name}'")
         fork_path.write_text(frontmatter.dumps(fork_post))
 
