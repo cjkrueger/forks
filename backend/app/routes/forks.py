@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from app.changelog import append_changelog_entry, remove_changelog_entries_for_fork
+from app.enums import ChangelogAction
 from app.generator import slugify
 from app.git import git_commit, git_find_commit, git_head_hash, git_log, git_rm, git_show
 from app.index import RecipeIndex
@@ -95,7 +96,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         # Append changelog entry and set initial version
         fork_post = frontmatter.load(path)
-        append_changelog_entry(fork_post, "created", "Forked from original")
+        append_changelog_entry(fork_post, ChangelogAction.CREATED, "Forked from original")
         fork_post.metadata["version"] = 1
         path.write_text(frontmatter.dumps(fork_post))
 
@@ -150,7 +151,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         else:
             summary = "Edited metadata"
         new_fork_post.metadata["changelog"] = old_changelog
-        append_changelog_entry(new_fork_post, "edited", summary)
+        append_changelog_entry(new_fork_post, ChangelogAction.EDITED, summary)
         new_fork_post.metadata["version"] = old_version + 1
         path.write_text(frontmatter.dumps(new_fork_post))
 
@@ -255,7 +256,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         fork_name = fork_post.metadata.get("fork_name", fork_name_slug)
 
         # Append changelog to base recipe
-        append_changelog_entry(base_post, "merged", f"Merged fork '{fork_name}': {data.note}")
+        append_changelog_entry(base_post, ChangelogAction.MERGED, f"Merged fork '{fork_name}': {data.note}")
 
         # Write updated base file
         base_path.write_text(frontmatter.dumps(base_post))
@@ -263,7 +264,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         # Mark fork as merged and append changelog
         fork_post.metadata["merged_at"] = datetime.date.today().isoformat()
-        append_changelog_entry(fork_post, "merged", f"Merged into {slug}")
+        append_changelog_entry(fork_post, ChangelogAction.MERGED, f"Merged into {slug}")
         fork_path.write_text(frontmatter.dumps(fork_post))
         git_commit(recipes_dir, fork_path, f"Mark fork '{fork_name}' as merged ({slug})")
 
@@ -307,12 +308,12 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         # Parse the restored content and write it back
         base_post = frontmatter.loads(pre_merge_content)
-        append_changelog_entry(base_post, "unmerged", f"Unmerged fork '{fork_name}'")
+        append_changelog_entry(base_post, ChangelogAction.UNMERGED, f"Unmerged fork '{fork_name}'")
         base_path.write_text(frontmatter.dumps(base_post))
 
         # Clear merged_at on the fork
         del fork_post.metadata["merged_at"]
-        append_changelog_entry(fork_post, "unmerged", f"Unmerged from {slug}")
+        append_changelog_entry(fork_post, ChangelogAction.UNMERGED, f"Unmerged from {slug}")
         fork_path.write_text(frontmatter.dumps(fork_post))
 
         # Commit and re-index both files
@@ -341,7 +342,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         fork_post.metadata["failed_at"] = datetime.date.today().isoformat()
         fork_post.metadata["failed_reason"] = data.reason
-        append_changelog_entry(fork_post, "failed", f"Marked as failed: {data.reason}")
+        append_changelog_entry(fork_post, ChangelogAction.FAILED, f"Marked as failed: {data.reason}")
         fork_path.write_text(frontmatter.dumps(fork_post))
 
         git_commit(recipes_dir, fork_path, f"Mark fork '{fork_name}' as failed ({slug})")
@@ -365,7 +366,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         del fork_post.metadata["failed_at"]
         if "failed_reason" in fork_post.metadata:
             del fork_post.metadata["failed_reason"]
-        append_changelog_entry(fork_post, "unfailed", f"Reactivated fork '{fork_name}'")
+        append_changelog_entry(fork_post, ChangelogAction.UNFAILED, f"Reactivated fork '{fork_name}'")
         fork_path.write_text(frontmatter.dumps(fork_post))
 
         git_commit(recipes_dir, fork_path, f"Reactivate fork '{fork_name}' ({slug})")

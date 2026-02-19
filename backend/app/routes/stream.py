@@ -7,6 +7,7 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException
 
+from app.enums import ChangelogAction, EventType
 from app.index import RecipeIndex
 from app.models import StreamEvent
 
@@ -38,7 +39,7 @@ def create_stream_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             )
             # Enrich merge/unmerge events with structured fork info;
             # skip events for forks that no longer exist (deleted)
-            if entry.action in ("merged", "unmerged"):
+            if entry.action in (ChangelogAction.MERGED, ChangelogAction.UNMERGED):
                 m = _FORK_NAME_RE.search(entry.summary)
                 if m:
                     fname = m.group(1)
@@ -53,10 +54,12 @@ def create_stream_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
         for fork_summary in recipe.forks:
             for entry in fork_summary.changelog:
                 # Skip fork-side merge/unmerge — base recipe events are canonical
-                if entry.action in ("merged", "unmerged"):
+                if entry.action in (ChangelogAction.MERGED, ChangelogAction.UNMERGED):
                     continue
                 # Map "created" action on a fork to "forked" event type
-                event_type = "forked" if entry.action == "created" else entry.action
+                event_type = (
+                    EventType.FORKED if entry.action == ChangelogAction.CREATED else EventType(entry.action)
+                )
                 events.append(StreamEvent(
                     type=event_type,
                     date=entry.date,

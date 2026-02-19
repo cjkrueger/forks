@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
+from app.enums import RemoteProvider
 from app.models import RemoteConfig, SyncConfig, SyncStatus
 from app.remote_config import get_config_path, load_config, save_config
 from app.sync import SyncEngine
@@ -42,7 +43,7 @@ def create_settings_router(sync_engine: SyncEngine, recipes_dir: Path) -> APIRou
         remote = RemoteConfig(**body.get("remote", {}))
         sync = SyncConfig(**body.get("sync", {}))
         save_config(config_path, remote, sync)
-        if remote.provider == "local" and remote.local_path:
+        if remote.provider == RemoteProvider.LOCAL and remote.local_path:
             from app.git import git_init_bare, git_remote_add
             git_init_bare(Path(remote.local_path))
             git_remote_add(recipes_dir, remote.local_path)

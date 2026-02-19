@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 from app.changelog import append_changelog_entry
+from app.enums import ChangelogAction
 from app.generator import RecipeInput, slugify, generate_markdown
 from app.git import git_commit, git_rm
 from app.index import RecipeIndex
@@ -89,7 +90,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
         # Append changelog entry and set initial version
         post = frontmatter.load(filepath)
-        append_changelog_entry(post, "created", "Created")
+        append_changelog_entry(post, ChangelogAction.CREATED, "Created")
         post.metadata["version"] = 1
         filepath.write_text(frontmatter.dumps(post))
 
@@ -156,7 +157,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             summary = "Edited metadata"
         # Carry forward existing changelog from the old post
         new_post.metadata["changelog"] = old_post.metadata.get("changelog", [])
-        append_changelog_entry(new_post, "edited", summary)
+        append_changelog_entry(new_post, ChangelogAction.EDITED, summary)
         new_post.metadata["version"] = old_version + 1
         filepath.write_text(frontmatter.dumps(new_post))
 

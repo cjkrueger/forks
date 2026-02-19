@@ -2,6 +2,8 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 
+from app.enums import ChangelogAction, EventType, RemoteProvider
+
 
 class ChangelogEntry(BaseModel):
     date: str
@@ -81,7 +83,7 @@ class SyncStatus(BaseModel):
 
 
 class StreamEvent(BaseModel):
-    type: str  # "created", "edited", "forked", "merged", "unmerged", "failed", "unfailed"
+    type: EventType
     date: str
     message: str
     commit: Optional[str] = None
@@ -90,7 +92,7 @@ class StreamEvent(BaseModel):
 
 
 class RemoteConfig(BaseModel):
-    provider: Optional[str] = None  # "github", "gitlab", "generic", "tangled", "local"
+    provider: Optional[RemoteProvider] = None
     url: Optional[str] = None
     token: Optional[str] = None
     local_path: Optional[str] = None
