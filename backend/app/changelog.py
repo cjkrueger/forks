@@ -2,13 +2,15 @@
 
 import datetime
 
+from app.enums import ChangelogAction
 
-def append_changelog_entry(post, action: str, summary: str) -> None:
+
+def append_changelog_entry(post, action: ChangelogAction, summary: str) -> None:
     """Append a changelog entry to a frontmatter.Post object.
 
     Args:
         post: A python-frontmatter Post object.
-        action: The action type (e.g. "created", "edited", "merged").
+        action: The action type (a :class:`~app.enums.ChangelogAction` value).
         summary: A human-readable summary of the change.
     """
     changelog = post.metadata.get("changelog", [])
@@ -35,7 +37,7 @@ def remove_changelog_entries_for_fork(post, fork_name: str) -> None:
     post.metadata["changelog"] = [
         entry for entry in changelog
         if not (
-            entry.get("action") in ("merged", "unmerged")
+            entry.get("action") in (ChangelogAction.MERGED, ChangelogAction.UNMERGED)
             and f"'{fork_name}'" in entry.get("summary", "")
         )
     ]
