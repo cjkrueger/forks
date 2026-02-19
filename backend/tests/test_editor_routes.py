@@ -123,3 +123,45 @@ def test_delete_recipe(client, tmp_recipes):
 def test_delete_nonexistent(client):
     resp = client.delete("/api/recipes/nonexistent")
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# SSRF protection: scrape endpoint returns 400 for blocked URLs
+# ---------------------------------------------------------------------------
+
+
+def test_scrape_endpoint_blocks_localhost(client):
+    """POST /api/scrape with a localhost URL returns 400 (SSRF blocked)."""
+    resp = client.post("/api/scrape", json={"url": "http://localhost/admin"})
+    assert resp.status_code == 400
+    assert "localhost" in resp.json()["detail"].lower() or "not allowed" in resp.json()["detail"].lower()
+
+
+def test_scrape_endpoint_blocks_private_ip(client):
+    """POST /api/scrape with a private IP returns 400 (SSRF blocked)."""
+    resp = client.post("/api/scrape", json={"url": "http://192.168.1.1/secret"})
+    assert resp.status_code == 400
+
+
+def test_scrape_endpoint_blocks_loopback(client):
+    """POST /api/scrape with 127.x.x.x returns 400 (SSRF blocked)."""
+    resp = client.post("/api/scrape", json={"url": "http://127.0.0.1/internal"})
+    assert resp.status_code == 400
+
+
+def test_scrape_endpoint_blocks_metadata_ip(client):
+    """POST /api/scrape with the AWS/GCP metadata IP returns 400 (SSRF blocked)."""
+    resp = client.post("/api/scrape", json={"url": "http://169.254.169.254/latest/meta-data/"})
+    assert resp.status_code == 400
+
+
+def test_scrape_endpoint_blocks_file_scheme(client):
+    """POST /api/scrape with file:// scheme returns 400 (SSRF blocked)."""
+    resp = client.post("/api/scrape", json={"url": "file:///etc/passwd"})
+    assert resp.status_code == 400
+
+
+def test_scrape_endpoint_blocks_10_net(client):
+    """POST /api/scrape with RFC 1918 10.x.x.x address returns 400 (SSRF blocked)."""
+    resp = client.post("/api/scrape", json={"url": "http://10.0.0.1/internal"})
+    assert resp.status_code == 400

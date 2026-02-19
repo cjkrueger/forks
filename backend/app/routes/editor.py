@@ -15,6 +15,7 @@ from app.normalizer import normalize_ingredients
 from app.scraper import scrape_recipe, download_image
 from app.sections import detect_changed_sections
 from app.tagger import auto_tag
+from app.url_validator import SSRFError
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,10 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.post("/scrape", response_model=ScrapeResponse)
     def scrape(req: ScrapeRequest):
-        data = scrape_recipe(req.url)
+        try:
+            data = scrape_recipe(req.url)
+        except SSRFError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         if not data.get("title"):
             raise HTTPException(status_code=422, detail="Could not extract recipe from URL")
         data["ingredients"] = normalize_ingredients(data.get("ingredients", []))

@@ -6,12 +6,39 @@ from typing import Dict, List, Optional, Any
 import httpx
 from recipe_scrapers import scrape_html
 
+from app.url_validator import validate_url, SSRFError
+
 logger = logging.getLogger(__name__)
 
 _BROWSER_UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
+
+
+def _check_redirect(response: httpx.Response) -> None:
+    """httpx event hook: validate each redirect destination before following it.
+
+    This prevents SSRF via open redirects — e.g. a public URL that redirects
+    to an internal address (169.254.x.x, 10.x.x.x, etc.).
+
+    The hook is called *before* the redirect is followed, so raising here
+    causes httpx to abort the request chain.
+    """
+    if response.is_redirect:
+        location = response.headers.get("location", "")
+        if location:
+            # Resolve relative redirects against the current URL
+            next_url = str(response.url.copy_with()).rstrip("/")
+            try:
+                resolved = httpx.URL(location)
+                if not resolved.is_absolute_url:
+                    resolved = response.url.copy_with(path=location)
+                validate_url(str(resolved))
+            except SSRFError as exc:
+                raise SSRFError(
+                    f"Redirect to '{location}' was blocked: {exc}"
+                ) from exc
 
 
 def scrape_recipe(url: str) -> Dict[str, Any]:
@@ -30,12 +57,17 @@ def scrape_recipe(url: str) -> Dict[str, Any]:
         "notes": None,
     }
 
+    # SSRF protection: validate the URL before making any server-side request.
+    # SSRFError is intentionally not caught here so it propagates to the caller.
+    validate_url(url)
+
     try:
         response = httpx.get(
             url,
             follow_redirects=True,
             timeout=15.0,
             headers={"User-Agent": _BROWSER_UA},
+            event_hooks={"response": [_check_redirect]},
         )
         response.raise_for_status()
         try:
@@ -43,6 +75,8 @@ def scrape_recipe(url: str) -> Dict[str, Any]:
         except Exception:
             # Site not explicitly supported — fall back to wild mode (JSON-LD/schema.org)
             scraper = scrape_html(response.text, org_url=url, wild_mode=True)
+    except SSRFError:
+        raise
     except Exception as e:
         # Direct fetch failed (e.g. 403) — let recipe_scrapers fetch the page itself
         logger.info(f"Direct fetch failed for {url}, trying online mode: {e}")
@@ -128,6 +162,7 @@ def _upgrade_image_url(url: str) -> str:
                 follow_redirects=True,
                 timeout=5.0,
                 headers={"User-Agent": _BROWSER_UA},
+                event_hooks={"response": [_check_redirect]},
             )
             if resp.status_code == 200:
                 return upgraded
@@ -138,12 +173,20 @@ def _upgrade_image_url(url: str) -> str:
 
 def download_image(image_url: str, save_path: Path) -> bool:
     """Download an image from a URL and save it to disk."""
+    # SSRF protection: validate the URL before fetching.
+    try:
+        validate_url(image_url)
+    except SSRFError as e:
+        logger.warning(f"SSRF check blocked image URL '{image_url}': {e}")
+        return False
+
     try:
         response = httpx.get(
             image_url,
             follow_redirects=True,
             timeout=15.0,
             headers={"User-Agent": _BROWSER_UA},
+            event_hooks={"response": [_check_redirect]},
         )
         response.raise_for_status()
 
@@ -151,6 +194,9 @@ def download_image(image_url: str, save_path: Path) -> bool:
         save_path.write_bytes(response.content)
         logger.info(f"Downloaded image to {save_path}")
         return True
+    except SSRFError as e:
+        logger.warning(f"SSRF check blocked redirect for '{image_url}': {e}")
+        return False
     except Exception as e:
         logger.error(f"Failed to download image from {image_url}: {e}")
         return False
