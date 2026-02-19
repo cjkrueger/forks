@@ -13,6 +13,7 @@ from app.index import RecipeIndex
 from pydantic import BaseModel
 
 from app.models import ForkDetail, ForkInput
+from app.slug_utils import validate_slug
 from app.sections import (
     detect_changed_sections,
     diff_sections,
@@ -47,6 +48,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.get("/{fork_name_slug}", response_model=ForkDetail)
     def get_fork(slug: str, fork_name_slug: str):
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         path = _fork_path(slug, fork_name_slug)
         if not path.exists():
             raise HTTPException(status_code=404, detail="Fork not found")
@@ -64,6 +67,7 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.post("", status_code=201)
     def create_fork(slug: str, data: ForkInput):
+        validate_slug(slug)
         base_path = _load_base(slug)
         fork_name_slug = slugify(data.fork_name)
         if not fork_name_slug:
@@ -106,6 +110,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.put("/{fork_name_slug}")
     def update_fork(slug: str, fork_name_slug: str, data: ForkInput):
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         base_path = _load_base(slug)
         path = _fork_path(slug, fork_name_slug)
         if not path.exists():
@@ -161,6 +167,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.delete("/{fork_name_slug}", status_code=204)
     def delete_fork(slug: str, fork_name_slug: str):
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         path = _fork_path(slug, fork_name_slug)
         if not path.exists():
             raise HTTPException(status_code=404, detail="Fork not found")
@@ -185,6 +193,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.get("/{fork_name_slug}/export")
     def export_fork(slug: str, fork_name_slug: str):
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         base_path = _load_base(slug)
         fork_path = _fork_path(slug, fork_name_slug)
         if not fork_path.exists():
@@ -227,6 +237,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
     @router.get("/{fork_name_slug}/history")
     def fork_history(slug: str, fork_name_slug: str, content: bool = False):
         """Return git history for a fork file."""
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         path = _fork_path(slug, fork_name_slug)
         if not path.exists():
             raise HTTPException(status_code=404, detail="Fork not found")
@@ -240,6 +252,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
     @router.post("/{fork_name_slug}/merge")
     def merge_fork(slug: str, fork_name_slug: str, data: MergeForkRequest):
         """Merge a fork's changes back into the base recipe."""
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         base_path = _load_base(slug)
         fork_path = _fork_path(slug, fork_name_slug)
         if not fork_path.exists():
@@ -276,6 +290,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
     @router.post("/{fork_name_slug}/unmerge")
     def unmerge_fork(slug: str, fork_name_slug: str):
         """Undo a previous merge by restoring the base recipe from git history."""
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         base_path = _load_base(slug)
         fork_path = _fork_path(slug, fork_name_slug)
         if not fork_path.exists():
@@ -329,6 +345,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
     @router.post("/{fork_name_slug}/fail")
     def fail_fork(slug: str, fork_name_slug: str, data: FailForkRequest):
         """Mark a fork as failed with a reason."""
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         fork_path = _fork_path(slug, fork_name_slug)
         if not fork_path.exists():
             raise HTTPException(status_code=404, detail="Fork not found")
@@ -352,6 +370,8 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
     @router.post("/{fork_name_slug}/unfail")
     def unfail_fork(slug: str, fork_name_slug: str):
         """Reactivate a previously failed fork."""
+        validate_slug(slug)
+        validate_slug(fork_name_slug, "fork_name_slug")
         fork_path = _fork_path(slug, fork_name_slug)
         if not fork_path.exists():
             raise HTTPException(status_code=404, detail="Fork not found")

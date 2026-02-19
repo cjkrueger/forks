@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.git import git_commit
 from app.index import RecipeIndex
+from app.slug_utils import validate_slug
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.post("/cook-history", status_code=201)
     def add_cook_history(slug: str, data: CookHistoryInput):
+        validate_slug(slug)
         path, post = _load_post(slug)
         today = str(date.today())
 
@@ -60,6 +62,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.delete("/cook-history/{entry_index}")
     def delete_cook_history(slug: str, entry_index: int):
+        validate_slug(slug)
         path, post = _load_post(slug)
         history = post.metadata.get("cook_history", [])
         if not isinstance(history, list):
@@ -77,6 +80,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.post("/favorite", status_code=200)
     def add_favorite(slug: str):
+        validate_slug(slug)
         path, post = _load_post(slug)
         tags = post.metadata.get("tags", [])
         if not isinstance(tags, list):
@@ -93,6 +97,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.delete("/favorite")
     def remove_favorite(slug: str):
+        validate_slug(slug)
         path, post = _load_post(slug)
         tags = post.metadata.get("tags", [])
         if not isinstance(tags, list):
@@ -109,6 +114,7 @@ def create_cook_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.post("/like", status_code=200)
     def like_recipe(slug: str):
+        validate_slug(slug)
         path, post = _load_post(slug)
         current = int(post.metadata.get("likes", 0))
         current += 1

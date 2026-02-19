@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.index import RecipeIndex
 from app.models import StreamEvent
+from app.slug_utils import validate_slug
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ def create_stream_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.get("/api/recipes/{slug}/stream")
     def get_stream(slug: str):
+        validate_slug(slug)
         recipe = index.get(slug)
         if not recipe:
             raise HTTPException(status_code=404, detail="Recipe not found")
