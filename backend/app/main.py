@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -26,6 +27,16 @@ logger = logging.getLogger(__name__)
 
 def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
     app = FastAPI(title="Forks", version="0.1.0")
+
+    # CORS: restrict to configured origins only.
+    # Override via FORKS_CORS_ORIGINS environment variable (comma-separated).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     recipes_path = recipes_dir or settings.recipes_dir
 
