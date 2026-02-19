@@ -3,6 +3,8 @@
 import re
 from typing import Optional
 
+from app.ingredient_utils import WORD_NUMBER_FLOATS as WORD_NUMBERS, WORD_NUMBER_PATTERN
+
 
 UNIT_MAP = {
     "cup": "cup", "cups": "cup", "c": "cup",
@@ -27,12 +29,6 @@ UNIT_MAP = {
     "pinch": "pinch",
     "dash": "dash",
     "stick": "stick", "sticks": "stick",
-}
-
-WORD_NUMBERS = {
-    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
-    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
-    "half": 0.5, "a": 1, "an": 1,
 }
 
 UNICODE_FRACTIONS = {
@@ -102,7 +98,7 @@ def parse_ingredient(line: str) -> dict:
 
     # Check for word numbers first
     word_match = re.match(
-        r"^(one|two|three|four|five|six|seven|eight|nine|ten|half|a|an)\b\s*",
+        rf"^({WORD_NUMBER_PATTERN})\b\s*",
         parse_text,
         re.IGNORECASE,
     )

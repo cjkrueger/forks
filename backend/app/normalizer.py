@@ -2,24 +2,7 @@
 
 import re
 
-# Word-to-number map (case-insensitive matching)
-WORD_NUMBERS: dict[str, str] = {
-    "a": "1",
-    "an": "1",
-    "one": "1",
-    "two": "2",
-    "three": "3",
-    "four": "4",
-    "five": "5",
-    "six": "6",
-    "seven": "7",
-    "eight": "8",
-    "nine": "9",
-    "ten": "10",
-    "eleven": "11",
-    "twelve": "12",
-    "half": "1/2",
-}
+from app.ingredient_utils import WORD_NUMBER_STRINGS as WORD_NUMBERS, WORD_NUMBER_PATTERN
 
 # Container words (singular forms — plurals handled by regex)
 CONTAINER_WORDS = (
@@ -33,15 +16,11 @@ _container_alt = "|".join(
     rf"{w}s?" for w in CONTAINER_WORDS
 )
 
-# Build word-number alternation (longest first to avoid partial matches)
-_word_num_sorted = sorted(WORD_NUMBERS.keys(), key=len, reverse=True)
-_word_num_alt = "|".join(_word_num_sorted)
-
 # --- Pass 1: Compound container ---
 # Matches: "One 15-ounce can", "two 8.5-ounce bags", "a 12-oz bottle", "one 12 oz can"
 # Groups: (word_number) (digits[.digits]) (-?)(ounce|oz) (container)
 _compound_re = re.compile(
-    rf"(?i)\b({_word_num_alt})\s+"          # word number
+    rf"(?i)\b({WORD_NUMBER_PATTERN})\s+"    # word number
     rf"(\d+(?:\.\d+)?)"                     # numeric size
     rf"[- ]?"                               # optional hyphen or space
     rf"(?:ounces?|oz\.?)"                   # unit (ounce/ounces/oz/oz.)
@@ -70,7 +49,7 @@ def _hyphenated_repl(m: re.Match) -> str:
 # --- Pass 3: Simple word number at start of string ---
 # Matches word numbers at the beginning of the ingredient line
 _simple_word_re = re.compile(
-    rf"(?i)^({_word_num_alt})\b(\s+(?:a|an)\b)?",
+    rf"(?i)^({WORD_NUMBER_PATTERN})\b(\s+(?:a|an)\b)?",
 )
 
 
