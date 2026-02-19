@@ -20,6 +20,7 @@ from app.sections import (
     merge_content,
     merge_fork_into_base,
 )
+from app.validation import validate_slug
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,14 @@ def create_fork_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     def _load_base(slug: str):
         """Load the base recipe file; raise 404 if missing."""
+        validate_slug(slug)
         base_path = recipes_dir / f"{slug}.md"
         if not base_path.exists():
             raise HTTPException(status_code=404, detail="Base recipe not found")
         return base_path
 
     def _fork_path(slug: str, fork_name_slug: str) -> Path:
+        validate_slug(fork_name_slug)
         return recipes_dir / f"{slug}.fork.{fork_name_slug}.md"
 
     @router.get("/{fork_name_slug}", response_model=ForkDetail)

@@ -9,6 +9,7 @@ from fastapi.responses import PlainTextResponse
 
 from app.ingredients import parse_ingredient, ingredient_key, format_quantity
 from app.models import AddToGroceryRequest, GroceryItem, GroceryList, GroceryRecipe
+from app.validation import validate_slug
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ def create_grocery_router(recipes_dir: Path) -> APIRouter:
 
     @router.delete("/recipes/{slug}")
     def remove_recipe_from_grocery(slug: str):
+        validate_slug(slug)
         store = _load()
         if slug in store.recipes:
             del store.recipes[slug]

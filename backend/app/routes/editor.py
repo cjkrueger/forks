@@ -15,6 +15,7 @@ from app.normalizer import normalize_ingredients
 from app.scraper import scrape_recipe, download_image
 from app.sections import detect_changed_sections
 from app.tagger import auto_tag
+from app.validation import validate_slug
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.put("/recipes/{slug}")
     def update_recipe(slug: str, data: RecipeInput):
+        validate_slug(slug)
         filepath = recipes_dir / f"{slug}.md"
         if not filepath.exists():
             raise HTTPException(status_code=404, detail="Recipe not found")
@@ -175,6 +177,7 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
 
     @router.delete("/recipes/{slug}", status_code=204)
     def delete_recipe(slug: str):
+        validate_slug(slug)
         filepath = recipes_dir / f"{slug}.md"
         if not filepath.exists():
             raise HTTPException(status_code=404, detail="Recipe not found")
