@@ -1,3 +1,4 @@
+import io
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -123,3 +124,38 @@ def test_delete_recipe(client, tmp_recipes):
 def test_delete_nonexistent(client):
     resp = client.delete("/api/recipes/nonexistent")
     assert resp.status_code == 404
+
+
+def test_upload_image_within_limit(client, tmp_recipes):
+    """Uploading a small image should succeed with 200."""
+    small_image = b"\xff\xd8\xff" + b"\x00" * 100  # tiny fake JPEG
+    with patch("app.routes.editor.git_commit"):
+        resp = client.post(
+            "/api/images/upload",
+            files={"file": ("photo.jpg", io.BytesIO(small_image), "image/jpeg")},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["path"].startswith("images/")
+
+
+def test_upload_image_exceeds_limit(client, tmp_recipes):
+    """Uploading a file larger than MAX_UPLOAD_SIZE_MB should return 413."""
+    # Patch settings so the limit is 1 byte for test speed
+    with patch("app.routes.editor.settings") as mock_settings:
+        mock_settings.max_upload_size_mb = 0  # 0 MB → 0 bytes limit
+        resp = client.post(
+            "/api/images/upload",
+            files={"file": ("big.jpg", io.BytesIO(b"\xff\xd8\xff" + b"\x00" * 10), "image/jpeg")},
+        )
+    assert resp.status_code == 413
+    assert "too large" in resp.json()["detail"].lower()
+
+
+def test_upload_image_not_an_image(client, tmp_recipes):
+    """Uploading a non-image file should return 400."""
+    resp = client.post(
+        "/api/images/upload",
+        files={"file": ("data.txt", io.BytesIO(b"hello"), "text/plain")},
+    )
+    assert resp.status_code == 400
