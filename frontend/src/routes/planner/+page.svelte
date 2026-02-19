@@ -123,23 +123,43 @@
 
   async function addAllToGrocery() {
     addingToGrocery = true;
+
+    // Collect unique meals (deduplicated by slug:fork key)
     const seen = new Set<string>();
+    const uniqueMeals: PlanSlot[] = [];
     for (const day of days) {
       for (const meal of day.meals) {
         const key = meal.fork ? `${meal.slug}:${meal.fork}` : meal.slug;
         if (seen.has(key)) continue;
         seen.add(key);
-        try {
-          const recipe = await getRecipe(meal.slug);
-          const lines = getIngredientLines(recipe.content);
-          if (lines.length > 0) {
-            await addRecipeToGrocery(meal.slug, meal.title, lines, meal.fork || null, recipe.servings);
-          }
-        } catch (e) {
-          console.error(`Failed to fetch recipe ${meal.slug}`, e);
-        }
+        uniqueMeals.push(meal);
       }
     }
+
+    // Fetch all recipes concurrently
+    const results = await Promise.all(
+      uniqueMeals.map(async (meal) => {
+        try {
+          const recipe = await getRecipe(meal.slug);
+          return { meal, recipe };
+        } catch (e) {
+          console.error(`Failed to fetch recipe ${meal.slug}`, e);
+          return null;
+        }
+      })
+    );
+
+    // Add each recipe's ingredients to the grocery list sequentially
+    // (sequential to avoid race conditions on the backend file store)
+    for (const result of results) {
+      if (!result) continue;
+      const { meal, recipe } = result;
+      const lines = getIngredientLines(recipe.content);
+      if (lines.length > 0) {
+        await addRecipeToGrocery(meal.slug, meal.title, lines, meal.fork || null, recipe.servings);
+      }
+    }
+
     addingToGrocery = false;
   }
 
