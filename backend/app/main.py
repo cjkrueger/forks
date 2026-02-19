@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -34,6 +35,17 @@ def create_app(recipes_dir: Optional[Path] = None) -> FastAPI:
     # standardized {"error": "...", "status": ...} format.
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+
+    # Configure CORS.  Origins are controlled via the FORKS_CORS_ORIGINS env var
+    # (comma-separated).  Defaults to ["*"] which is appropriate for a self-hosted
+    # home server; restrict to specific origins in production if desired.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     recipes_path = recipes_dir or settings.recipes_dir
 
