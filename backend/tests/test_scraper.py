@@ -2,6 +2,10 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import httpx
+from recipe_scrapers._exceptions import (
+    ElementNotFoundInHtml,
+    RecipeScrapersExceptions,
+)
 
 from app.scraper import scrape_recipe, download_image
 
@@ -72,7 +76,8 @@ def test_scrape_recipe_with_mock(mock_get, mock_scrape_html):
 def test_scrape_recipe_handles_failure(mock_get, mock_scrape_html):
     """Network failure falls back to online mode; if that also fails, returns empty result."""
     mock_get.side_effect = httpx.ConnectError("Connection refused")
-    mock_scrape_html.side_effect = Exception("Online mode also failed")
+    # Use a specific RecipeScrapersExceptions subclass to reflect real failure modes
+    mock_scrape_html.side_effect = RecipeScrapersExceptions("Online mode also failed")
 
     result = scrape_recipe("https://bad-url.example.com/recipe")
 
@@ -101,13 +106,14 @@ def test_scrape_recipe_handles_partial_data(mock_get, mock_scrape_html):
     scraper = MagicMock()
     scraper.title.return_value = "Partial Recipe"
     scraper.ingredients.return_value = ["some ingredient"]
-    scraper.instructions.side_effect = Exception("not available")
-    scraper.prep_time.side_effect = Exception("not available")
-    scraper.cook_time.side_effect = Exception("not available")
-    scraper.total_time.side_effect = Exception("not available")
-    scraper.yields.side_effect = Exception("not available")
-    scraper.image.side_effect = Exception("not available")
-    scraper.author.side_effect = Exception("not available")
+    # Use specific exception types that the scraper actually raises for missing fields
+    scraper.instructions.side_effect = ElementNotFoundInHtml("instructions")
+    scraper.prep_time.side_effect = ElementNotFoundInHtml("prep_time")
+    scraper.cook_time.side_effect = ElementNotFoundInHtml("cook_time")
+    scraper.total_time.side_effect = ElementNotFoundInHtml("total_time")
+    scraper.yields.side_effect = ElementNotFoundInHtml("yields")
+    scraper.image.side_effect = ElementNotFoundInHtml("image")
+    scraper.author.side_effect = ElementNotFoundInHtml("author")
     mock_scrape_html.return_value = scraper
 
     result = scrape_recipe("https://example.com/partial")
