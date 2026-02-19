@@ -8,6 +8,7 @@
   import { computeSectionDiffs } from '$lib/diff';
   import type { SectionDiff, LineDiff } from '$lib/diff';
   import { groceryStore, addRecipeToGrocery, removeRecipeFromGrocery } from '$lib/grocery';
+  import { safeLocalStorage } from '$lib/storage';
   import type { Recipe, ForkDetail, StreamEvent } from '$lib/types';
   import CookMode from '$lib/components/CookMode.svelte';
   import CookHistory from '$lib/components/CookHistory.svelte';
@@ -84,7 +85,7 @@
       recipe = await getRecipe(slug);
       // Check query param first, then localStorage
       const queryFork = $page.url.searchParams.get('fork');
-      const defaultFork = queryFork || localStorage.getItem(`forks-default-${slug}`);
+      const defaultFork = queryFork || safeLocalStorage.getItem(`forks-default-${slug}`);
       if (defaultFork && recipe.forks.some(f => f.name === defaultFork)) {
         await selectFork(defaultFork);
       }
@@ -122,9 +123,9 @@
 
   function setAsDefault() {
     if (selectedFork) {
-      localStorage.setItem(`forks-default-${slug}`, selectedFork);
+      safeLocalStorage.setItem(`forks-default-${slug}`, selectedFork);
     } else {
-      localStorage.removeItem(`forks-default-${slug}`);
+      safeLocalStorage.removeItem(`forks-default-${slug}`);
     }
     isDefault = true;
   }
@@ -271,7 +272,7 @@
 
   let isDefault = true;
   $: {
-    const stored = localStorage.getItem(`forks-default-${slug}`);
+    const stored = safeLocalStorage.getItem(`forks-default-${slug}`);
     if (selectedFork) {
       isDefault = stored === selectedFork;
     } else {
