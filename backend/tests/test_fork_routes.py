@@ -128,7 +128,7 @@ class TestCreateFork:
             ),
         )
         assert resp.status_code == 400
-        assert "No changes" in resp.json()["detail"]
+        assert "No changes" in resp.json()["error"]
 
     def test_create_fork_duplicate_returns_409(self, client):
         resp1 = client.post(
@@ -425,7 +425,7 @@ class TestUnmergeFork:
         client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
         resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/unmerge")
         assert resp.status_code == 400
-        assert "not merged" in resp.json()["detail"]
+        assert "not merged" in resp.json()["error"]
 
     def test_unmerge_fork_not_found(self, client):
         """Unmerging a non-existent fork should return 404."""
@@ -467,7 +467,7 @@ class TestFailFork:
             json={"reason": "Second attempt"},
         )
         assert resp.status_code == 400
-        assert "already" in resp.json()["detail"].lower()
+        assert "already" in resp.json()["error"].lower()
 
     def test_unfail_fork(self, client):
         """Unfailing a failed fork should return 200."""
@@ -499,4 +499,4 @@ class TestFailFork:
         client.post("/api/recipes/chocolate-cookies/forks", json=_fork_input())
         resp = client.post("/api/recipes/chocolate-cookies/forks/vegan-version/unfail")
         assert resp.status_code == 400
-        assert "not failed" in resp.json()["detail"].lower()
+        assert "not failed" in resp.json()["error"].lower()
