@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 from app.changelog import append_changelog_entry
+from app.config import settings
 from app.generator import RecipeInput, slugify, generate_markdown
 from app.git import git_commit, git_rm
 from app.index import RecipeIndex
@@ -224,6 +225,15 @@ def create_editor_router(index: RecipeIndex, recipes_dir: Path) -> APIRouter:
             counter += 1
 
         content = await file.read()
+
+        # Enforce upload size limit
+        max_bytes = settings.max_upload_size_mb * 1024 * 1024
+        if len(content) > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum allowed size is {settings.max_upload_size_mb}MB.",
+            )
+
         dest.write_bytes(content)
         git_commit(recipes_dir, dest, f"Add image: {dest.name}")
 
